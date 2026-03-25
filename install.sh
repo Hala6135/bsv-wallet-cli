@@ -61,7 +61,7 @@ install_from_release() {
 install_from_source() {
     if command -v cargo >/dev/null 2>&1; then
         printf "No pre-built binary found. Building from source with cargo...\n"
-        cargo install --git "https://github.com/${REPO}.git"
+        cargo install --git "https://github.com/${REPO}.git" bsv-wallet-cli
         return 0
     fi
     return 1

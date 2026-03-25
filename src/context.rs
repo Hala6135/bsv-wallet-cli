@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use bsv_sdk::primitives::PrivateKey;
-use bsv_wallet_toolbox::{Chain, Services, ServicesOptions, StorageSqlx, Wallet, WalletStorageWriter};
+use bsv_wallet_toolbox::{
+    Chain, Services, ServicesOptions, StorageSqlx, Wallet, WalletStorageWriter,
+};
 
 use crate::cli::Cli;
 

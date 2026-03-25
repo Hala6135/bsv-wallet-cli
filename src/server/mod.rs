@@ -44,13 +44,11 @@ pub struct ServerConfig {
 }
 
 /// Auth middleware — checks Bearer token if configured.
-async fn auth_middleware(
-    headers: HeaderMap,
-    request: Request,
-    next: Next,
-) -> Response {
+async fn auth_middleware(headers: HeaderMap, request: Request, next: Next) -> Response {
     // Extract config from request extensions
-    let token = request.extensions().get::<ServerConfig>()
+    let token = request
+        .extensions()
+        .get::<ServerConfig>()
         .and_then(|c| c.auth_token.clone());
 
     if let Some(expected) = token {
@@ -96,10 +94,7 @@ pub fn make_router(wallet: WalletState, config: ServerConfig) -> Router {
             get(handlers::wait_for_authentication),
         )
         // Batch 2: Header
-        .route(
-            "/getHeaderForHeight",
-            post(handlers::get_header_for_height),
-        )
+        .route("/getHeaderForHeight", post(handlers::get_header_for_height))
         // Batch 3: Crypto
         .route("/verifySignature", post(handlers::verify_signature))
         .route("/encrypt", post(handlers::encrypt))

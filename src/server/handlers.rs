@@ -5,32 +5,65 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use bsv_sdk::primitives::{to_hex, PublicKey};
 use bsv_sdk::wallet::{
-    // Core types
-    Counterparty, Protocol, SecurityLevel, WalletInterface,
-    // Existing endpoint types
-    BasketInsertion, CreateActionArgs, CreateActionOptions, CreateActionOutput,
-    CreateSignatureArgs, GetPublicKeyArgs, InternalizeActionArgs, InternalizeOutput,
-    WalletPayment,
-    // Batch 1: Status result types
-    AuthenticatedResult, GetHeightResult, GetNetworkResult, GetVersionResult,
-    // Batch 2: Header types
-    GetHeaderArgs, GetHeaderResult,
-    // Batch 3: Crypto arg types (no serde — manual construction)
-    DecryptArgs, EncryptArgs, CreateHmacArgs, VerifyHmacArgs, VerifySignatureArgs,
     // Batch 4: Transaction types (have serde — pass through)
-    AbortActionArgs, AbortActionResult, ListActionsArgs, ListActionsResult,
-    SignActionArgs, SignActionResult,
-    // Output types
-    ListOutputsArgs, ListOutputsResult, RelinquishOutputArgs, RelinquishOutputResult,
+    AbortActionArgs,
+    AbortActionResult,
     // Batch 5: Certificate types (have serde — pass through)
-    AcquireCertificateArgs, ListCertificatesArgs, ListCertificatesResult,
-    ProveCertificateArgs, ProveCertificateResult, RelinquishCertificateArgs,
-    RelinquishCertificateResult, WalletCertificate,
+    AcquireCertificateArgs,
+    // Batch 1: Status result types
+    AuthenticatedResult,
+    // Existing endpoint types
+    BasketInsertion,
+    // Core types
+    Counterparty,
+    CreateActionArgs,
+    CreateActionOptions,
+    CreateActionOutput,
+    CreateHmacArgs,
+    CreateSignatureArgs,
+    // Batch 3: Crypto arg types (no serde — manual construction)
+    DecryptArgs,
     // Batch 6: Discovery types (have serde — pass through)
-    DiscoverByAttributesArgs, DiscoverByIdentityKeyArgs, DiscoverCertificatesResult,
+    DiscoverByAttributesArgs,
+    DiscoverByIdentityKeyArgs,
+    DiscoverCertificatesResult,
+    EncryptArgs,
+    // Batch 2: Header types
+    GetHeaderArgs,
+    GetHeaderResult,
+    GetHeightResult,
+    GetNetworkResult,
+    GetPublicKeyArgs,
+    GetVersionResult,
+    InternalizeActionArgs,
+    InternalizeOutput,
+    ListActionsArgs,
+    ListActionsResult,
+    ListCertificatesArgs,
+    ListCertificatesResult,
+    // Output types
+    ListOutputsArgs,
+    ListOutputsResult,
+    Protocol,
+    ProveCertificateArgs,
+    ProveCertificateResult,
+    RelinquishCertificateArgs,
+    RelinquishCertificateResult,
+    RelinquishOutputArgs,
+    RelinquishOutputResult,
     // Key linkage types
-    RevealCounterpartyKeyLinkageResult, RevealSpecificKeyLinkageResult,
-    WalletRevealCounterpartyArgs, WalletRevealSpecificArgs,
+    RevealCounterpartyKeyLinkageResult,
+    RevealSpecificKeyLinkageResult,
+    SecurityLevel,
+    SignActionArgs,
+    SignActionResult,
+    VerifyHmacArgs,
+    VerifySignatureArgs,
+    WalletCertificate,
+    WalletInterface,
+    WalletPayment,
+    WalletRevealCounterpartyArgs,
+    WalletRevealSpecificArgs,
 };
 use bsv_wallet_toolbox::{Services, StorageSqlx, Wallet};
 use serde_json::json;
@@ -41,7 +74,9 @@ use super::types::*;
 pub type WalletState = Arc<Wallet<StorageSqlx, Services>>;
 
 /// Extract originator from Origin or Originator header
-fn extract_originator(headers: &HeaderMap) -> Result<String, (StatusCode, Json<serde_json::Value>)> {
+fn extract_originator(
+    headers: &HeaderMap,
+) -> Result<String, (StatusCode, Json<serde_json::Value>)> {
     if let Some(origin) = headers.get("origin").and_then(|v| v.to_str().ok()) {
         if let Ok(url) = url::Url::parse(origin) {
             if let Some(host) = url.host_str() {
@@ -81,8 +116,7 @@ impl AppError {
             (StatusCode::FORBIDDEN, "ACCESS_DENIED")
         } else if clean.starts_with("Entity not found:") || clean.starts_with("not found:") {
             (StatusCode::NOT_FOUND, "NOT_FOUND")
-        } else if clean.starts_with("Duplicate entity:")
-            || clean.starts_with("Invalid operation:")
+        } else if clean.starts_with("Duplicate entity:") || clean.starts_with("Invalid operation:")
         {
             (StatusCode::CONFLICT, "CONFLICT")
         } else if clean.starts_with("Validation error:")
@@ -125,7 +159,9 @@ impl From<anyhow::Error> for AppError {
 
 impl From<(StatusCode, Json<serde_json::Value>)> for AppError {
     fn from((status, json): (StatusCode, Json<serde_json::Value>)) -> Self {
-        let message = json.0.get("message")
+        let message = json
+            .0
+            .get("message")
             .and_then(|m| m.as_str())
             .unwrap_or_default()
             .to_string();
@@ -169,10 +205,7 @@ pub async fn get_public_key(
 
     let args = GetPublicKeyArgs {
         identity_key: req.identity_key,
-        protocol_id: req
-            .protocol_id
-            .map(|v| parse_protocol_id(&v))
-            .transpose()?,
+        protocol_id: req.protocol_id.map(|v| parse_protocol_id(&v)).transpose()?,
         key_id: req.key_id,
         counterparty: req
             .counterparty
@@ -181,7 +214,9 @@ pub async fn get_public_key(
         for_self: req.for_self,
     };
 
-    let result = wallet.get_public_key(args, &originator).await
+    let result = wallet
+        .get_public_key(args, &originator)
+        .await
         .map_err(AppError::from_wallet_error)?;
 
     Ok(Json(McGetPublicKeyRes {
@@ -205,7 +240,9 @@ pub async fn create_signature(
         counterparty: Some(parse_counterparty(&req.counterparty)?),
     };
 
-    let result = wallet.create_signature(args, &originator).await
+    let result = wallet
+        .create_signature(args, &originator)
+        .await
         .map_err(AppError::from_wallet_error)?;
 
     Ok(Json(McCreateSignatureRes {
@@ -262,14 +299,18 @@ pub async fn create_action(
     };
 
     let output_count = args.outputs.as_ref().map(|o| o.len()).unwrap_or(0);
-    let total_sats: u64 = args.outputs.as_ref()
+    let total_sats: u64 = args
+        .outputs
+        .as_ref()
         .map(|o| o.iter().map(|x| x.satoshis).sum())
         .unwrap_or(0);
 
     // Acquire spending lock — queues behind any in-flight createAction.
     // Once the previous tx completes (and its change UTXO exists), we proceed.
     let _guard = spending_lock.lock().await;
-    let result = wallet.create_action(args, &originator).await
+    let result = wallet
+        .create_action(args, &originator)
+        .await
         .map_err(AppError::from_wallet_error)?;
     drop(_guard);
 
@@ -313,8 +354,8 @@ pub async fn create_action(
             // The SDK stores reference as Vec<u8> from String.into_bytes().
             // Reverse that to get the original reference string that
             // signAction/abortAction can look up in the pending tx cache.
-            let reference = String::from_utf8(st.reference)
-                .unwrap_or_else(|e| hex::encode(e.into_bytes()));
+            let reference =
+                String::from_utf8(st.reference).unwrap_or_else(|e| hex::encode(e.into_bytes()));
             McSignableTransaction {
                 tx: st.tx,
                 reference,
@@ -360,7 +401,9 @@ pub async fn internalize_action(
     };
 
     let output_count = args.outputs.len();
-    let result = wallet.internalize_action(args, &originator).await
+    let result = wallet
+        .internalize_action(args, &originator)
+        .await
         .map_err(AppError::from_wallet_error)?;
 
     tracing::info!(
@@ -491,7 +534,10 @@ pub async fn verify_signature(
         signature: req.signature,
         protocol_id: parse_protocol_id(&req.protocol_id)?,
         key_id: req.key_id,
-        counterparty: req.counterparty.map(|s| parse_counterparty(&s)).transpose()?,
+        counterparty: req
+            .counterparty
+            .map(|s| parse_counterparty(&s))
+            .transpose()?,
         for_self: req.for_self,
     };
     let result = wallet
@@ -512,7 +558,10 @@ pub async fn encrypt(
         plaintext: req.plaintext,
         protocol_id: parse_protocol_id(&req.protocol_id)?,
         key_id: req.key_id,
-        counterparty: req.counterparty.map(|s| parse_counterparty(&s)).transpose()?,
+        counterparty: req
+            .counterparty
+            .map(|s| parse_counterparty(&s))
+            .transpose()?,
     };
     let result = wallet
         .encrypt(args, &originator)
@@ -532,7 +581,10 @@ pub async fn decrypt(
         ciphertext: req.ciphertext,
         protocol_id: parse_protocol_id(&req.protocol_id)?,
         key_id: req.key_id,
-        counterparty: req.counterparty.map(|s| parse_counterparty(&s)).transpose()?,
+        counterparty: req
+            .counterparty
+            .map(|s| parse_counterparty(&s))
+            .transpose()?,
     };
     let result = wallet
         .decrypt(args, &originator)
@@ -552,7 +604,10 @@ pub async fn create_hmac(
         data: req.data,
         protocol_id: parse_protocol_id(&req.protocol_id)?,
         key_id: req.key_id,
-        counterparty: req.counterparty.map(|s| parse_counterparty(&s)).transpose()?,
+        counterparty: req
+            .counterparty
+            .map(|s| parse_counterparty(&s))
+            .transpose()?,
     };
     let result = wallet
         .create_hmac(args, &originator)
@@ -577,7 +632,10 @@ pub async fn verify_hmac(
         hmac,
         protocol_id: parse_protocol_id(&req.protocol_id)?,
         key_id: req.key_id,
-        counterparty: req.counterparty.map(|s| parse_counterparty(&s)).transpose()?,
+        counterparty: req
+            .counterparty
+            .map(|s| parse_counterparty(&s))
+            .transpose()?,
     };
     let result = wallet
         .verify_hmac(args, &originator)
@@ -764,8 +822,7 @@ pub async fn reveal_counterparty_key_linkage(
     let args = WalletRevealCounterpartyArgs {
         counterparty: PublicKey::from_hex(&req.counterparty)
             .map_err(|e| anyhow::anyhow!("{}", e))?,
-        verifier: PublicKey::from_hex(&req.verifier)
-            .map_err(|e| anyhow::anyhow!("{}", e))?,
+        verifier: PublicKey::from_hex(&req.verifier).map_err(|e| anyhow::anyhow!("{}", e))?,
         privileged: req.privileged,
         privileged_reason: req.privileged_reason,
     };
@@ -785,8 +842,7 @@ pub async fn reveal_specific_key_linkage(
     let originator = extract_originator(&headers)?;
     let args = WalletRevealSpecificArgs {
         counterparty: parse_counterparty(&req.counterparty)?,
-        verifier: PublicKey::from_hex(&req.verifier)
-            .map_err(|e| anyhow::anyhow!("{}", e))?,
+        verifier: PublicKey::from_hex(&req.verifier).map_err(|e| anyhow::anyhow!("{}", e))?,
         protocol_id: parse_protocol_id(&req.protocol_id)?,
         key_id: req.key_id,
         privileged: req.privileged,

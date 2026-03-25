@@ -29,7 +29,10 @@ pub async fn run(ctx: &WalletContext, beef_hex: &str, vout: u32) -> Result<()> {
         seek_permission: None,
     };
 
-    let result = ctx.wallet.internalize_action(args, "bsv-wallet-cli").await?;
+    let result = ctx
+        .wallet
+        .internalize_action(args, "bsv-wallet-cli")
+        .await?;
 
     if ctx.json_output {
         println!("{}", serde_json::json!({ "accepted": result.accepted }));

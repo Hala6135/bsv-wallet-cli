@@ -41,14 +41,21 @@ pub async fn run(ctx: &WalletContext, count: u32) -> Result<()> {
     let utxo_count = list.outputs.len();
 
     if utxo_count == 0 || total_sats == 0 {
-        anyhow::bail!("No UTXOs to split (balance: {} sats, {} UTXOs)", total_sats, utxo_count);
+        anyhow::bail!(
+            "No UTXOs to split (balance: {} sats, {} UTXOs)",
+            total_sats,
+            utxo_count
+        );
     }
 
     // Derive the wallet's own address locking script (same logic as address.rs)
     let wallet_deriver = KeyDeriver::new(Some(ctx.root_key.clone()));
     let (_, anyone_pubkey) = KeyDeriver::anyone_key();
     let protocol = Protocol::new(SecurityLevel::Counterparty, BRC29_PROTOCOL);
-    let key_id = format!("{} {}", DEFAULT_DERIVATION_PREFIX, DEFAULT_DERIVATION_SUFFIX);
+    let key_id = format!(
+        "{} {}",
+        DEFAULT_DERIVATION_PREFIX, DEFAULT_DERIVATION_SUFFIX
+    );
     let derived_pubkey = wallet_deriver.derive_public_key(
         &protocol,
         &key_id,
@@ -106,10 +113,7 @@ pub async fn run(ctx: &WalletContext, count: u32) -> Result<()> {
         }),
     };
 
-    let result = ctx
-        .wallet
-        .create_action(args, "bsv-wallet-cli")
-        .await?;
+    let result = ctx.wallet.create_action(args, "bsv-wallet-cli").await?;
 
     let txid = result.txid.expect("Expected txid from split transaction");
     let txid_hex = to_hex(&txid);

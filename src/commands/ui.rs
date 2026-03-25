@@ -63,9 +63,12 @@ async fn list_tables(State(state): State<Arc<AppState>>) -> Json<Vec<TableInfo>>
     let mut tables = Vec::new();
     for row in rows {
         let name: String = row.get("name");
-        let count_row = sqlx::query(&format!("SELECT COUNT(*) as cnt FROM \"{}\"", name.replace('"', "")))
-            .fetch_one(&state.pool)
-            .await;
+        let count_row = sqlx::query(&format!(
+            "SELECT COUNT(*) as cnt FROM \"{}\"",
+            name.replace('"', "")
+        ))
+        .fetch_one(&state.pool)
+        .await;
         let count = count_row.map(|r| r.get::<i64, _>("cnt")).unwrap_or(0);
         tables.push(TableInfo { name, count });
     }
@@ -128,7 +131,11 @@ async fn table_data(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let columns: Vec<String> = if let Some(first) = rows.first() {
-        first.columns().iter().map(|c| c.name().to_string()).collect()
+        first
+            .columns()
+            .iter()
+            .map(|c| c.name().to_string())
+            .collect()
     } else {
         // No rows - get columns from schema
         get_column_names(&state.pool, &safe_name).await
@@ -281,7 +288,11 @@ async fn stats(State(state): State<Arc<AppState>>) -> Json<WalletStats> {
         .collect();
 
     let chain = query_string(&state.pool, "SELECT chain as v FROM settings LIMIT 1").await;
-    let identity_key = query_string(&state.pool, "SELECT storage_identity_key as v FROM settings LIMIT 1").await;
+    let identity_key = query_string(
+        &state.pool,
+        "SELECT storage_identity_key as v FROM settings LIMIT 1",
+    )
+    .await;
 
     let db_size = std::fs::metadata(&state.db_path)
         .map(|m| format_bytes(m.len()))
@@ -318,15 +329,13 @@ struct QueryRes {
     error: Option<String>,
 }
 
-async fn query(
-    State(state): State<Arc<AppState>>,
-    Json(req): Json<QueryReq>,
-) -> Json<QueryRes> {
+async fn query(State(state): State<Arc<AppState>>, Json(req): Json<QueryReq>) -> Json<QueryRes> {
     let sql = req.sql.trim();
 
     // Safety: only allow SELECT and PRAGMA
     let upper = sql.to_uppercase();
-    if !upper.starts_with("SELECT") && !upper.starts_with("PRAGMA") && !upper.starts_with("EXPLAIN") {
+    if !upper.starts_with("SELECT") && !upper.starts_with("PRAGMA") && !upper.starts_with("EXPLAIN")
+    {
         return Json(QueryRes {
             columns: vec![],
             rows: vec![],
@@ -368,7 +377,10 @@ async fn query(
 
 // ─── Helpers ───
 
-fn sqlite_value_to_json(row: &sqlx::sqlite::SqliteRow, col: &sqlx::sqlite::SqliteColumn) -> serde_json::Value {
+fn sqlite_value_to_json(
+    row: &sqlx::sqlite::SqliteRow,
+    col: &sqlx::sqlite::SqliteColumn,
+) -> serde_json::Value {
     let type_name = col.type_info().name();
     let idx = col.ordinal();
 
@@ -405,7 +417,11 @@ async fn count_table(pool: &SqlitePool, table: &str) -> i64 {
 
 async fn count_filtered(pool: &SqlitePool, table: &str, filter: &str) -> i64 {
     let where_clause = build_filter_where(pool, table, filter).await;
-    query_i64(pool, &format!("SELECT COUNT(*) as v FROM \"{table}\" {where_clause}")).await
+    query_i64(
+        pool,
+        &format!("SELECT COUNT(*) as v FROM \"{table}\" {where_clause}"),
+    )
+    .await
 }
 
 async fn build_filter_where(pool: &SqlitePool, table: &str, filter: &str) -> String {
@@ -415,7 +431,13 @@ async fn build_filter_where(pool: &SqlitePool, table: &str, filter: &str) -> Str
     }
     let conditions: Vec<String> = cols
         .iter()
-        .map(|c| format!("CAST(\"{}\" AS TEXT) LIKE '%{}%'", c.replace('"', ""), filter.replace('\'', "''")))
+        .map(|c| {
+            format!(
+                "CAST(\"{}\" AS TEXT) LIKE '%{}%'",
+                c.replace('"', ""),
+                filter.replace('\'', "''")
+            )
+        })
         .collect();
     format!("WHERE {}", conditions.join(" OR "))
 }

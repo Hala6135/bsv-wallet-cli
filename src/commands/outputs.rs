@@ -22,7 +22,11 @@ pub async fn run(ctx: &WalletContext, basket: Option<&str>, tag: Option<&str>) -
     if ctx.json_output {
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else {
-        println!("{} outputs (total: {})", result.outputs.len(), result.total_outputs);
+        println!(
+            "{} outputs (total: {})",
+            result.outputs.len(),
+            result.total_outputs
+        );
         for output in &result.outputs {
             println!(
                 "  {} | {} sats | spendable: {}",

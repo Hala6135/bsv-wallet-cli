@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::context::WalletContext;
+use anyhow::Result;
 
 pub async fn run(ctx: &WalletContext) -> Result<()> {
     let address = ctx.root_key.public_key().to_address();

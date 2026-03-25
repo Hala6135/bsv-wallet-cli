@@ -6,7 +6,9 @@
 
 use bsv_sdk::primitives::PrivateKey;
 use bsv_wallet_cli::server::{self, ServerConfig};
-use bsv_wallet_toolbox::{Chain, Services, ServicesOptions, StorageSqlx, WalletStorageWriter, Wallet};
+use bsv_wallet_toolbox::{
+    Chain, Services, ServicesOptions, StorageSqlx, Wallet, WalletStorageWriter,
+};
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::net::SocketAddr;
@@ -83,7 +85,11 @@ async fn post_json_ok(client: &Client, url: &str, body: Value) -> Value {
 #[tokio::test]
 async fn test_is_authenticated() {
     let (base, client, _tmp) = setup().await;
-    let resp = client.get(format!("{base}/isAuthenticated")).send().await.unwrap();
+    let resp = client
+        .get(format!("{base}/isAuthenticated"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["authenticated"], true);
@@ -92,7 +98,11 @@ async fn test_is_authenticated() {
 #[tokio::test]
 async fn test_get_height() {
     let (base, client, _tmp) = setup().await;
-    let resp = client.get(format!("{base}/getHeight")).send().await.unwrap();
+    let resp = client
+        .get(format!("{base}/getHeight"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     assert!(body["height"].is_number(), "height should be a number");
@@ -101,7 +111,11 @@ async fn test_get_height() {
 #[tokio::test]
 async fn test_get_network() {
     let (base, client, _tmp) = setup().await;
-    let resp = client.get(format!("{base}/getNetwork")).send().await.unwrap();
+    let resp = client
+        .get(format!("{base}/getNetwork"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["network"], "mainnet");
@@ -110,7 +124,11 @@ async fn test_get_network() {
 #[tokio::test]
 async fn test_get_version() {
     let (base, client, _tmp) = setup().await;
-    let resp = client.get(format!("{base}/getVersion")).send().await.unwrap();
+    let resp = client
+        .get(format!("{base}/getVersion"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     assert!(body["version"].is_string(), "version should be a string");
@@ -136,7 +154,12 @@ async fn test_wait_for_authentication() {
 #[tokio::test]
 async fn test_get_header_for_height() {
     let (base, client, _tmp) = setup().await;
-    let resp = post_json(&client, &format!("{base}/getHeaderForHeight"), json!({"height": 1})).await;
+    let resp = post_json(
+        &client,
+        &format!("{base}/getHeaderForHeight"),
+        json!({"height": 1}),
+    )
+    .await;
     let status = resp.status().as_u16();
     if std::env::var("CHAINTRACKS_URL").is_ok() {
         // With Chaintracks configured, expect 200 and a hex header
@@ -161,10 +184,18 @@ async fn test_get_header_for_height() {
 #[tokio::test]
 async fn test_get_public_key_identity() {
     let (base, client, _tmp) = setup().await;
-    let resp = post_json(&client, &format!("{base}/getPublicKey"), json!({"identityKey": true})).await;
+    let resp = post_json(
+        &client,
+        &format!("{base}/getPublicKey"),
+        json!({"identityKey": true}),
+    )
+    .await;
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
-    assert!(body["publicKey"].is_string(), "publicKey should be a hex string");
+    assert!(
+        body["publicKey"].is_string(),
+        "publicKey should be a hex string"
+    );
 }
 
 #[tokio::test]
@@ -346,8 +377,14 @@ async fn test_discover_by_identity_key() {
         json!({"identityKey": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"}),
     )
     .await;
-    assert_eq!(body["totalCertificates"], 0, "fresh wallet should have 0 certificates");
-    assert!(body["certificates"].as_array().unwrap().is_empty(), "certificates should be empty");
+    assert_eq!(
+        body["totalCertificates"], 0,
+        "fresh wallet should have 0 certificates"
+    );
+    assert!(
+        body["certificates"].as_array().unwrap().is_empty(),
+        "certificates should be empty"
+    );
 }
 
 /// Discovery with invalid identity key still returns 200 with empty results (endpoint is lenient).
@@ -360,7 +397,10 @@ async fn test_discover_by_identity_key_invalid() {
         json!({"identityKey": "not-a-valid-pubkey"}),
     )
     .await;
-    assert_eq!(body["totalCertificates"], 0, "invalid key should return 0 certificates");
+    assert_eq!(
+        body["totalCertificates"], 0,
+        "invalid key should return 0 certificates"
+    );
     assert!(body["certificates"].as_array().unwrap().is_empty());
 }
 
@@ -373,8 +413,14 @@ async fn test_discover_by_attributes() {
         json!({"attributes": {"name": "test"}}),
     )
     .await;
-    assert_eq!(body["totalCertificates"], 0, "fresh wallet should have 0 certificates");
-    assert!(body["certificates"].as_array().unwrap().is_empty(), "certificates should be empty");
+    assert_eq!(
+        body["totalCertificates"], 0,
+        "fresh wallet should have 0 certificates"
+    );
+    assert!(
+        body["certificates"].as_array().unwrap().is_empty(),
+        "certificates should be empty"
+    );
 }
 
 #[tokio::test]
@@ -434,7 +480,10 @@ async fn test_encrypt_decrypt_self_counterparty() {
         .iter()
         .map(|v| v.as_u64().unwrap() as u8)
         .collect();
-    assert_eq!(decrypted, plaintext, "self-encrypted data should round-trip");
+    assert_eq!(
+        decrypted, plaintext,
+        "self-encrypted data should round-trip"
+    );
 }
 
 /// Encrypt and decrypt a 10KB payload to verify large data handling.
@@ -481,7 +530,10 @@ async fn test_encrypt_decrypt_large_payload() {
         .map(|v| v.as_u64().unwrap() as u8)
         .collect();
     assert_eq!(decrypted.len(), 10240, "decrypted length should be 10KB");
-    assert_eq!(decrypted, plaintext, "large payload should round-trip exactly");
+    assert_eq!(
+        decrypted, plaintext,
+        "large payload should round-trip exactly"
+    );
 }
 
 /// Send garbage ciphertext to /decrypt and verify it returns 400, not a panic/500.
@@ -675,7 +727,10 @@ async fn test_create_action_insufficient_funds() {
         status,
         body
     );
-    assert!(body["message"].is_string(), "error should have message field");
+    assert!(
+        body["message"].is_string(),
+        "error should have message field"
+    );
 }
 
 /// POST /signAction with invalid reference — should return 400.
@@ -691,9 +746,16 @@ async fn test_sign_action_invalid_reference() {
         }),
     )
     .await;
-    assert_eq!(resp.status(), 400, "invalid signAction reference should return 400");
+    assert_eq!(
+        resp.status(),
+        400,
+        "invalid signAction reference should return 400"
+    );
     let body: Value = resp.json().await.unwrap();
-    assert!(body["message"].is_string(), "error should have message field");
+    assert!(
+        body["message"].is_string(),
+        "error should have message field"
+    );
 }
 
 /// POST /abortAction with invalid reference — should return 400.
@@ -717,7 +779,10 @@ async fn test_abort_action_invalid_reference() {
         status,
         body
     );
-    assert!(body["message"].is_string(), "error should have message field");
+    assert!(
+        body["message"].is_string(),
+        "error should have message field"
+    );
 }
 
 /// POST /relinquishOutput with nonexistent output — wallet returns 200 with relinquished: false.
@@ -765,7 +830,10 @@ async fn test_internalize_action_invalid_tx() {
     .await;
     assert_eq!(resp.status(), 400, "garbage tx should return 400");
     let body: Value = resp.json().await.unwrap();
-    assert!(body["message"].is_string(), "error should have message field");
+    assert!(
+        body["message"].is_string(),
+        "error should have message field"
+    );
 }
 
 // =============================================================================
@@ -798,10 +866,15 @@ async fn test_certificate_full_lifecycle() {
         }),
     )
     .await;
-    assert!(cert["certificateType"].is_string(), "should have certificateType");
+    assert!(
+        cert["certificateType"].is_string(),
+        "should have certificateType"
+    );
     assert!(cert["certifier"].is_string(), "should have certifier");
     assert!(cert["subject"].is_string(), "should have subject");
-    let serial = cert["serialNumber"].as_str().expect("cert should have serialNumber");
+    let serial = cert["serialNumber"]
+        .as_str()
+        .expect("cert should have serialNumber");
 
     // Step 2: List certificates — should find our cert
     let list = post_json_ok(
@@ -882,9 +955,16 @@ async fn test_prove_certificate_not_found() {
         }),
     )
     .await;
-    assert_eq!(resp.status(), 400, "proving nonexistent cert should return 400");
+    assert_eq!(
+        resp.status(),
+        400,
+        "proving nonexistent cert should return 400"
+    );
     let body: Value = resp.json().await.unwrap();
-    assert!(body["message"].is_string(), "error should have message field");
+    assert!(
+        body["message"].is_string(),
+        "error should have message field"
+    );
 }
 
 /// POST /relinquishCertificate with nonexistent cert — wallet returns 200 with relinquished: false.
@@ -927,13 +1007,30 @@ async fn test_reveal_counterparty_key_linkage() {
         }),
     )
     .await;
-    let linkage = body.get("linkage").expect("response should have linkage object");
-    assert!(linkage["encryptedLinkage"].is_string(), "linkage should have encryptedLinkage");
-    assert!(linkage["encryptedLinkageProof"].is_string(), "linkage should have encryptedLinkageProof");
+    let linkage = body
+        .get("linkage")
+        .expect("response should have linkage object");
+    assert!(
+        linkage["encryptedLinkage"].is_string(),
+        "linkage should have encryptedLinkage"
+    );
+    assert!(
+        linkage["encryptedLinkageProof"].is_string(),
+        "linkage should have encryptedLinkageProof"
+    );
     assert!(linkage["prover"].is_string(), "linkage should have prover");
-    assert!(linkage["verifier"].is_string(), "linkage should have verifier");
-    assert!(linkage["counterparty"].is_string(), "linkage should have counterparty");
-    assert!(body["revelationTime"].is_string(), "response should have revelationTime");
+    assert!(
+        linkage["verifier"].is_string(),
+        "linkage should have verifier"
+    );
+    assert!(
+        linkage["counterparty"].is_string(),
+        "linkage should have counterparty"
+    );
+    assert!(
+        body["revelationTime"].is_string(),
+        "response should have revelationTime"
+    );
 }
 
 /// POST /revealCounterpartyKeyLinkage with invalid pubkey — returns 400.
@@ -949,9 +1046,16 @@ async fn test_reveal_counterparty_key_linkage_invalid_key() {
         }),
     )
     .await;
-    assert_eq!(resp.status(), 400, "invalid counterparty key should return 400");
+    assert_eq!(
+        resp.status(),
+        400,
+        "invalid counterparty key should return 400"
+    );
     let body: Value = resp.json().await.unwrap();
-    assert!(body["message"].is_string(), "error should have message field");
+    assert!(
+        body["message"].is_string(),
+        "error should have message field"
+    );
 }
 
 /// POST /revealSpecificKeyLinkage with valid pubkeys and protocol — returns 200.
@@ -970,12 +1074,26 @@ async fn test_reveal_specific_key_linkage() {
         }),
     )
     .await;
-    let linkage = body.get("linkage").expect("response should have linkage object");
-    assert!(linkage["encryptedLinkage"].is_string(), "linkage should have encryptedLinkage");
-    assert!(linkage["encryptedLinkageProof"].is_string(), "linkage should have encryptedLinkageProof");
+    let linkage = body
+        .get("linkage")
+        .expect("response should have linkage object");
+    assert!(
+        linkage["encryptedLinkage"].is_string(),
+        "linkage should have encryptedLinkage"
+    );
+    assert!(
+        linkage["encryptedLinkageProof"].is_string(),
+        "linkage should have encryptedLinkageProof"
+    );
     assert!(linkage["prover"].is_string(), "linkage should have prover");
-    assert!(linkage["verifier"].is_string(), "linkage should have verifier");
-    assert!(body.get("protocol").is_some(), "response should have protocol");
+    assert!(
+        linkage["verifier"].is_string(),
+        "linkage should have verifier"
+    );
+    assert!(
+        body.get("protocol").is_some(),
+        "response should have protocol"
+    );
 }
 
 /// POST /revealSpecificKeyLinkage with invalid pubkey — returns 400.
@@ -993,9 +1111,16 @@ async fn test_reveal_specific_key_linkage_invalid_key() {
         }),
     )
     .await;
-    assert_eq!(resp.status(), 400, "invalid counterparty key should return 400");
+    assert_eq!(
+        resp.status(),
+        400,
+        "invalid counterparty key should return 400"
+    );
     let body: Value = resp.json().await.unwrap();
-    assert!(body["message"].is_string(), "error should have message field");
+    assert!(
+        body["message"].is_string(),
+        "error should have message field"
+    );
 }
 
 // =============================================================================
@@ -1074,8 +1199,14 @@ async fn test_list_outputs_nondefault_basket() {
         }),
     )
     .await;
-    assert_eq!(body["totalOutputs"], 0, "non-existent basket should have 0 outputs");
-    assert!(body["outputs"].as_array().unwrap().is_empty(), "outputs should be empty");
+    assert_eq!(
+        body["totalOutputs"], 0,
+        "non-existent basket should have 0 outputs"
+    );
+    assert!(
+        body["outputs"].as_array().unwrap().is_empty(),
+        "outputs should be empty"
+    );
 }
 
 /// listActions with offset beyond available data — returns 200 with empty results (#18).
@@ -1097,8 +1228,14 @@ async fn test_list_actions_pagination() {
         }),
     )
     .await;
-    assert!(body["totalActions"].is_number(), "totalActions should be a number");
-    assert!(body["actions"].as_array().unwrap().is_empty(), "actions should be empty at high offset");
+    assert!(
+        body["totalActions"].is_number(),
+        "totalActions should be a number"
+    );
+    assert!(
+        body["actions"].as_array().unwrap().is_empty(),
+        "actions should be empty at high offset"
+    );
 }
 
 /// listOutputs with offset beyond available data — returns 200 with empty results (#18).
@@ -1117,8 +1254,14 @@ async fn test_list_outputs_pagination() {
         }),
     )
     .await;
-    assert!(body["totalOutputs"].is_number(), "totalOutputs should be a number");
-    assert!(body["outputs"].as_array().unwrap().is_empty(), "outputs should be empty at high offset");
+    assert!(
+        body["totalOutputs"].is_number(),
+        "totalOutputs should be a number"
+    );
+    assert!(
+        body["outputs"].as_array().unwrap().is_empty(),
+        "outputs should be empty at high offset"
+    );
 }
 
 /// listActions with labelQueryMode "all" — accepted and returns well-shaped response (#19).
@@ -1173,7 +1316,10 @@ async fn test_create_action_with_no_send_option() {
         status
     );
     let body: Value = resp.json().await.unwrap();
-    assert!(body["message"].is_string(), "error should have message field");
+    assert!(
+        body["message"].is_string(),
+        "error should have message field"
+    );
 }
 
 /// createAction with randomizeOutputs option — deserializes correctly (#20).
@@ -1307,7 +1453,11 @@ async fn e2e_create_and_abort_action() {
     .await;
     let status = resp.status().as_u16();
     let body: Value = resp.json().await.unwrap();
-    assert_eq!(status, 200, "createAction should succeed on funded wallet: {:?}", body);
+    assert_eq!(
+        status, 200,
+        "createAction should succeed on funded wallet: {:?}",
+        body
+    );
 
     // Step 2: Verify signableTransaction is present with reference
     let st = body
@@ -1338,7 +1488,10 @@ async fn e2e_create_and_abort_action() {
         json!({"labels": ["e2e-test-abort"]}),
     )
     .await;
-    assert!(list["totalActions"].is_number(), "listActions should return totalActions");
+    assert!(
+        list["totalActions"].is_number(),
+        "listActions should return totalActions"
+    );
 }
 
 /// E2E: Full crypto round-trip against the real wallet.
@@ -1358,7 +1511,11 @@ async fn e2e_crypto_roundtrip() {
     )
     .await;
     let identity_key = identity["publicKey"].as_str().expect("identity key");
-    assert_eq!(identity_key.len(), 66, "identity key should be 66 hex chars");
+    assert_eq!(
+        identity_key.len(),
+        66,
+        "identity key should be 66 hex chars"
+    );
 
     // Encrypt with counterparty "self" (most common production pattern)
     let plaintext: Vec<u8> = b"e2e test secret data".to_vec();
@@ -1442,7 +1599,10 @@ async fn e2e_certificate_lifecycle() {
     // Use a unique serial per run (timestamp-based) to avoid UNIQUE constraint from previous runs.
     // relinquishCertificate soft-deletes, so the DB row persists and blocks re-insertion.
     use std::time::{SystemTime, UNIX_EPOCH};
-    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let serial_input = format!("e2e-{}", ts);
 
     // Acquire
@@ -1571,26 +1731,46 @@ async fn e2e_status_endpoints() {
     };
 
     // isAuthenticated
-    let resp = client.get(format!("{base}/isAuthenticated")).send().await.unwrap();
+    let resp = client
+        .get(format!("{base}/isAuthenticated"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["authenticated"], true);
 
     // getHeight — should return real chain height
-    let resp = client.get(format!("{base}/getHeight")).send().await.unwrap();
+    let resp = client
+        .get(format!("{base}/getHeight"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     let height = body["height"].as_u64().expect("height");
-    assert!(height > 800000, "mainnet height should be > 800000, got {}", height);
+    assert!(
+        height > 800000,
+        "mainnet height should be > 800000, got {}",
+        height
+    );
 
     // getNetwork
-    let resp = client.get(format!("{base}/getNetwork")).send().await.unwrap();
+    let resp = client
+        .get(format!("{base}/getNetwork"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["network"], "mainnet");
 
     // getVersion
-    let resp = client.get(format!("{base}/getVersion")).send().await.unwrap();
+    let resp = client
+        .get(format!("{base}/getVersion"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     assert!(body["version"].is_string());
@@ -1697,10 +1877,7 @@ async fn e2e_internalize_action_real_beef() {
         return;
     };
     if resp.status() != 200 {
-        eprintln!(
-            "Skipping e2e_internalize: WoC returned {}",
-            resp.status()
-        );
+        eprintln!("Skipping e2e_internalize: WoC returned {}", resp.status());
         return;
     }
     let history: Value = resp.json().await.unwrap();
@@ -1845,8 +2022,7 @@ async fn e2e_nosend_flow() {
 
     // signableTransaction should NOT be present (tx is already signed)
     assert!(
-        body.get("signableTransaction").is_none()
-            || body["signableTransaction"].is_null(),
+        body.get("signableTransaction").is_none() || body["signableTransaction"].is_null(),
         "noSend should not have signableTransaction (tx is already signed)"
     );
 
@@ -1910,8 +2086,16 @@ async fn test_auth_token_enforcement() {
     let client = Client::new();
 
     // Without token → 401
-    let resp = client.get(format!("{base}/isAuthenticated")).send().await.unwrap();
-    assert_eq!(resp.status(), 401, "request without token should return 401");
+    let resp = client
+        .get(format!("{base}/isAuthenticated"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        resp.status(),
+        401,
+        "request without token should return 401"
+    );
 
     // With wrong token → 401
     let resp = client
@@ -1920,7 +2104,11 @@ async fn test_auth_token_enforcement() {
         .send()
         .await
         .unwrap();
-    assert_eq!(resp.status(), 401, "request with wrong token should return 401");
+    assert_eq!(
+        resp.status(),
+        401,
+        "request with wrong token should return 401"
+    );
 
     // With correct token → 200
     let resp = client
@@ -1929,7 +2117,11 @@ async fn test_auth_token_enforcement() {
         .send()
         .await
         .unwrap();
-    assert_eq!(resp.status(), 200, "request with correct token should return 200");
+    assert_eq!(
+        resp.status(),
+        200,
+        "request with correct token should return 200"
+    );
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["authenticated"], true);
 }

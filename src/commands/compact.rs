@@ -35,7 +35,13 @@ async fn debug_compact(ctx: &WalletContext) -> Result<()> {
     let original_size = beef_bytes.len();
     let mut beef = Beef::from_binary(beef_bytes)?;
 
-    println!("BEEF req_id={}: {}KB, {} txs, {} bumps", req_id, original_size / 1024, beef.txs.len(), beef.bumps.len());
+    println!(
+        "BEEF req_id={}: {}KB, {} txs, {} bumps",
+        req_id,
+        original_size / 1024,
+        beef.txs.len(),
+        beef.bumps.len()
+    );
 
     let unproven_txids: Vec<String> = beef
         .txs
@@ -58,19 +64,22 @@ async fn debug_compact(ctx: &WalletContext) -> Result<()> {
     let mut find_failures = 0u32;
 
     for txid in &sample {
-        let row: Option<(Vec<u8>,)> = sqlx::query_as(
-            "SELECT merkle_path FROM proven_txs WHERE txid = ?"
-        )
-        .bind(*txid)
-        .fetch_optional(pool)
-        .await?;
+        let row: Option<(Vec<u8>,)> =
+            sqlx::query_as("SELECT merkle_path FROM proven_txs WHERE txid = ?")
+                .bind(*txid)
+                .fetch_optional(pool)
+                .await?;
 
         match row {
             None => {
                 println!("  txid {}: NOT in proven_txs", &txid[..16]);
             }
             Some((mp_bytes,)) => {
-                println!("  txid {}: merkle_path {} bytes", &txid[..16], mp_bytes.len());
+                println!(
+                    "  txid {}: merkle_path {} bytes",
+                    &txid[..16],
+                    mp_bytes.len()
+                );
                 match MerklePath::from_binary(&mp_bytes) {
                     Ok(merkle_path) => {
                         let bump_index = beef.merge_bump(merkle_path);
@@ -89,18 +98,27 @@ async fn debug_compact(ctx: &WalletContext) -> Result<()> {
                     Err(e) => {
                         parse_errors += 1;
                         println!("    -> MerklePath::from_binary FAILED: {}", e);
-                        println!("    -> first 20 bytes: {}", hex::encode(&mp_bytes[..mp_bytes.len().min(20)]));
+                        println!(
+                            "    -> first 20 bytes: {}",
+                            hex::encode(&mp_bytes[..mp_bytes.len().min(20)])
+                        );
                     }
                 }
             }
         }
     }
 
-    println!("\nSample results: {} upgraded, {} parse errors, {} find failures", upgraded, parse_errors, find_failures);
+    println!(
+        "\nSample results: {} upgraded, {} parse errors, {} find failures",
+        upgraded, parse_errors, find_failures
+    );
 
     if upgraded > 0 {
         // Now do the full upgrade
-        println!("\nRunning full upgrade on all {} unproven txids...", unproven_txids.len());
+        println!(
+            "\nRunning full upgrade on all {} unproven txids...",
+            unproven_txids.len()
+        );
         let mut full_upgraded = 0u32;
         let mut full_errors = 0u32;
 
@@ -127,7 +145,9 @@ async fn debug_compact(ctx: &WalletContext) -> Result<()> {
                             full_upgraded += 1;
                         }
                     }
-                    Err(_) => { full_errors += 1; }
+                    Err(_) => {
+                        full_errors += 1;
+                    }
                 }
             }
         }
@@ -139,7 +159,8 @@ async fn debug_compact(ctx: &WalletContext) -> Result<()> {
         let new_bytes = beef.to_binary();
         let new_size = new_bytes.len();
 
-        println!("Before: {}KB -> After: {}KB (saved {}KB, {:.0}%)",
+        println!(
+            "Before: {}KB -> After: {}KB (saved {}KB, {:.0}%)",
             original_size / 1024,
             new_size / 1024,
             (original_size - new_size) / 1024,

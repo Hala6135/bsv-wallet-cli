@@ -8,7 +8,10 @@ pub async fn run(ctx: WalletContext, port: u16) -> Result<()> {
         std::env::var("TLS_CERT_PATH").ok(),
         std::env::var("TLS_KEY_PATH").ok(),
     ) {
-        (Some(cert_path), Some(key_path)) => Some(TlsConfig { cert_path, key_path }),
+        (Some(cert_path), Some(key_path)) => Some(TlsConfig {
+            cert_path,
+            key_path,
+        }),
         _ => None,
     };
 

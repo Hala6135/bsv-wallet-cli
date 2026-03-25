@@ -44,9 +44,9 @@ pub async fn run(ctx: &WalletContext, address: &str, satoshis: u64) -> Result<()
 
     // Build AtomicBEEF hex from result for direct wallet-to-wallet transfers
     let beef_hex = result.beef.as_ref().and_then(|beef_bytes| {
-        Beef::from_binary(beef_bytes).ok().and_then(|mut beef| {
-            beef.to_binary_atomic(&txid_hex).ok().map(hex::encode)
-        })
+        Beef::from_binary(beef_bytes)
+            .ok()
+            .and_then(|mut beef| beef.to_binary_atomic(&txid_hex).ok().map(hex::encode))
     });
 
     if ctx.json_output {

@@ -23,7 +23,11 @@ pub async fn run(ctx: &WalletContext, label: Option<&str>) -> Result<()> {
     if ctx.json_output {
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else {
-        println!("{} actions (total: {})", result.actions.len(), result.total_actions);
+        println!(
+            "{} actions (total: {})",
+            result.actions.len(),
+            result.total_actions
+        );
         for action in &result.actions {
             let direction = if action.is_outgoing { "OUT" } else { "IN " };
             println!(

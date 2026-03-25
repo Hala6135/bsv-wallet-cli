@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
 use bsv_sdk::primitives::PrivateKey;
 use bsv_sdk::wallet::{ListOutputsArgs, WalletInterface};
-use bsv_wallet_toolbox::{Chain, Monitor, Services, ServicesOptions, StorageSqlx, Wallet, WalletStorageWriter};
+use bsv_wallet_toolbox::{
+    Chain, Monitor, Services, ServicesOptions, StorageSqlx, Wallet, WalletStorageWriter,
+};
 use std::sync::Arc;
 
 use crate::cli::Cli;
@@ -39,7 +41,10 @@ pub async fn run(cli: &Cli) -> Result<()> {
 
     // Start the monitor (12 background tasks)
     let monitor = Monitor::new(storage_arc.clone(), services_arc.clone());
-    monitor.start().await.map_err(|e| anyhow::anyhow!("{}", e))?;
+    monitor
+        .start()
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     eprintln!("Monitor started");
 
     // Create wallet using cloned Arcs (Wallet::new takes owned values, not Arcs,
@@ -47,7 +52,8 @@ pub async fn run(cli: &Cli) -> Result<()> {
     let storage2 = StorageSqlx::open(&cli.db).await?;
     storage2.make_available().await?;
     let services2 = make_services(chain)?;
-    let wallet = Wallet::new(Some(root_key), storage2, services2).await
+    let wallet = Wallet::new(Some(root_key), storage2, services2)
+        .await
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let wallet_state = server::make_wallet_state(wallet);
@@ -55,7 +61,10 @@ pub async fn run(cli: &Cli) -> Result<()> {
         std::env::var("TLS_CERT_PATH").ok(),
         std::env::var("TLS_KEY_PATH").ok(),
     ) {
-        (Some(cert_path), Some(key_path)) => Some(TlsConfig { cert_path, key_path }),
+        (Some(cert_path), Some(key_path)) => Some(TlsConfig {
+            cert_path,
+            key_path,
+        }),
         _ => None,
     };
     let config = ServerConfig {

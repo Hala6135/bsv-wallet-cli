@@ -13,7 +13,10 @@ pub async fn run(ctx: &WalletContext) -> Result<()> {
     let (_, anyone_pubkey) = KeyDeriver::anyone_key();
 
     let protocol = Protocol::new(SecurityLevel::Counterparty, BRC29_PROTOCOL);
-    let key_id = format!("{} {}", DEFAULT_DERIVATION_PREFIX, DEFAULT_DERIVATION_SUFFIX);
+    let key_id = format!(
+        "{} {}",
+        DEFAULT_DERIVATION_PREFIX, DEFAULT_DERIVATION_SUFFIX
+    );
 
     let derived_pubkey = wallet_deriver.derive_public_key(
         &protocol,

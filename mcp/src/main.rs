@@ -5,12 +5,8 @@
 
 use reqwest::Client;
 use rmcp::{
-    handler::server::tool::ToolRouter,
-    handler::server::wrapper::Parameters,
-    model::*,
-    tool, tool_handler, tool_router,
-    transport::stdio,
-    ErrorData, ServerHandler, ServiceExt,
+    handler::server::tool::ToolRouter, handler::server::wrapper::Parameters, model::*, tool,
+    tool_handler, tool_router, transport::stdio, ErrorData, ServerHandler, ServiceExt,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -72,10 +68,7 @@ impl WalletMcp {
                 .or(body.get("error"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown error");
-            return Err(Self::err(format!(
-                "Wallet HTTP {}: {msg}",
-                status.as_u16()
-            )));
+            return Err(Self::err(format!("Wallet HTTP {}: {msg}", status.as_u16())));
         }
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&body).unwrap_or_default(),
@@ -434,7 +427,9 @@ impl WalletMcp {
 
     // ── Custom: Balance ────────────────────────────────────────
 
-    #[tool(description = "Get the wallet's spendable balance in satoshis. Sums all spendable UTXOs.")]
+    #[tool(
+        description = "Get the wallet's spendable balance in satoshis. Sums all spendable UTXOs."
+    )]
     async fn wallet_balance(&self) -> Result<CallToolResult, ErrorData> {
         let mut total: u64 = 0;
         let mut offset: u64 = 0;
@@ -468,7 +463,10 @@ impl WalletMcp {
                 break;
             }
             for o in &outputs {
-                if o.get("spendable").and_then(|v| v.as_bool()).unwrap_or(false) {
+                if o.get("spendable")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false)
+                {
                     total += o.get("satoshis").and_then(|v| v.as_u64()).unwrap_or(0);
                 }
             }
@@ -513,7 +511,9 @@ impl WalletMcp {
 
     // ── Key & Crypto ───────────────────────────────────────────
 
-    #[tool(description = "Get identity key or derive a BRC-42 public key. Set identityKey=true for root key, or provide protocolID+keyID+counterparty for derivation.")]
+    #[tool(
+        description = "Get identity key or derive a BRC-42 public key. Set identityKey=true for root key, or provide protocolID+keyID+counterparty for derivation."
+    )]
     async fn get_public_key(
         &self,
         p: Parameters<GetPublicKeyParams>,
@@ -527,11 +527,8 @@ impl WalletMcp {
         &self,
         p: Parameters<CreateSignatureParams>,
     ) -> Result<CallToolResult, ErrorData> {
-        self.post(
-            "createSignature",
-            serde_json::to_value(&p.0).unwrap(),
-        )
-        .await
+        self.post("createSignature", serde_json::to_value(&p.0).unwrap())
+            .await
     }
 
     #[tool(description = "Verify an ECDSA signature using a BRC-42 derived key.")]
@@ -544,19 +541,13 @@ impl WalletMcp {
     }
 
     #[tool(description = "Encrypt data using a BRC-42 derived key. Returns {ciphertext: [bytes]}.")]
-    async fn encrypt(
-        &self,
-        p: Parameters<EncryptParams>,
-    ) -> Result<CallToolResult, ErrorData> {
+    async fn encrypt(&self, p: Parameters<EncryptParams>) -> Result<CallToolResult, ErrorData> {
         self.post("encrypt", serde_json::to_value(&p.0).unwrap())
             .await
     }
 
     #[tool(description = "Decrypt data using a BRC-42 derived key. Returns {plaintext: [bytes]}.")]
-    async fn decrypt(
-        &self,
-        p: Parameters<DecryptParams>,
-    ) -> Result<CallToolResult, ErrorData> {
+    async fn decrypt(&self, p: Parameters<DecryptParams>) -> Result<CallToolResult, ErrorData> {
         self.post("decrypt", serde_json::to_value(&p.0).unwrap())
             .await
     }
@@ -592,7 +583,9 @@ impl WalletMcp {
 
     // ── Transactions ───────────────────────────────────────────
 
-    #[tool(description = "Create a BSV transaction. Build, sign, broadcast. Use options.signAndProcess=false for unsigned templates (sign later with sign_action). Use options.noSend=true to sign but not broadcast.")]
+    #[tool(
+        description = "Create a BSV transaction. Build, sign, broadcast. Use options.signAndProcess=false for unsigned templates (sign later with sign_action). Use options.noSend=true to sign but not broadcast."
+    )]
     async fn create_action(
         &self,
         p: Parameters<CreateActionParams>,
@@ -601,7 +594,9 @@ impl WalletMcp {
             .await
     }
 
-    #[tool(description = "Sign a previously unsigned transaction (from create_action with signAndProcess=false).")]
+    #[tool(
+        description = "Sign a previously unsigned transaction (from create_action with signAndProcess=false)."
+    )]
     async fn sign_action(
         &self,
         p: Parameters<ReferenceParams>,
@@ -624,14 +619,13 @@ impl WalletMcp {
         &self,
         p: Parameters<InternalizeActionParams>,
     ) -> Result<CallToolResult, ErrorData> {
-        self.post(
-            "internalizeAction",
-            serde_json::to_value(&p.0).unwrap(),
-        )
-        .await
+        self.post("internalizeAction", serde_json::to_value(&p.0).unwrap())
+            .await
     }
 
-    #[tool(description = "List transaction history. Filter by labels. Returns {totalActions, actions: [{txid, satoshis, status, description, ...}]}.")]
+    #[tool(
+        description = "List transaction history. Filter by labels. Returns {totalActions, actions: [{txid, satoshis, status, description, ...}]}."
+    )]
     async fn list_actions(
         &self,
         p: Parameters<ListActionsParams>,
@@ -642,7 +636,9 @@ impl WalletMcp {
 
     // ── Outputs (UTXOs) ────────────────────────────────────────
 
-    #[tool(description = "List unspent outputs (UTXOs). Returns {totalOutputs, outputs: [{satoshis, spendable, outpoint, ...}]}.")]
+    #[tool(
+        description = "List unspent outputs (UTXOs). Returns {totalOutputs, outputs: [{satoshis, spendable, outpoint, ...}]}."
+    )]
     async fn list_outputs(
         &self,
         p: Parameters<ListOutputsParams>,
@@ -671,7 +667,9 @@ impl WalletMcp {
             .await
     }
 
-    #[tool(description = "List certificates. Filter by certifiers and/or types. Returns {certificates: [...]}.")]
+    #[tool(
+        description = "List certificates. Filter by certifiers and/or types. Returns {certificates: [...]}."
+    )]
     async fn list_certificates(
         &self,
         p: Parameters<ListCertificatesParams>,
@@ -725,8 +723,11 @@ impl WalletMcp {
         &self,
         p: Parameters<RevealCounterpartyKeyLinkageParams>,
     ) -> Result<CallToolResult, ErrorData> {
-        self.post("revealCounterpartyKeyLinkage", serde_json::to_value(&p.0).unwrap())
-            .await
+        self.post(
+            "revealCounterpartyKeyLinkage",
+            serde_json::to_value(&p.0).unwrap(),
+        )
+        .await
     }
 
     #[tool(description = "Reveal specific key linkage for a protocol+key to a verifier (BRC-70).")]
@@ -734,8 +735,11 @@ impl WalletMcp {
         &self,
         p: Parameters<RevealSpecificKeyLinkageParams>,
     ) -> Result<CallToolResult, ErrorData> {
-        self.post("revealSpecificKeyLinkage", serde_json::to_value(&p.0).unwrap())
-            .await
+        self.post(
+            "revealSpecificKeyLinkage",
+            serde_json::to_value(&p.0).unwrap(),
+        )
+        .await
     }
 }
 
@@ -749,7 +753,8 @@ impl ServerHandler for WalletMcp {
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
-                "BSV wallet MCP server. All 28 BRC-100 wallet endpoints plus wallet_balance.".into(),
+                "BSV wallet MCP server. All 28 BRC-100 wallet endpoints plus wallet_balance."
+                    .into(),
             ),
         }
     }
