@@ -1,5 +1,8 @@
 # bsv-wallet-cli
 
+[![CI](https://github.com/Calhooon/bsv-wallet-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/Calhooon/bsv-wallet-cli/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **Your agent's favorite wallet.**
 
 A self-hosted BRC-100 wallet server and CLI. Single Rust binary. Runs as a command-line wallet, an HTTP server with all 28 WalletInterface endpoints, or both. Wire-compatible with MetaNet Client.
@@ -68,6 +71,13 @@ Keep keys on a hardened server, run agents on throwaway VMs. Compromise the agen
 
 ### Fork and customize
 Swap storage backends, add HSM key management, put it behind your corporate proxy for audit logging, add OAuth/mTLS -- the BRC-100 interface stays identical. Anything built for MetaNet Client works unmodified against your fork.
+
+## Why bsv-wallet-cli?
+
+- **No GUI required** -- Runs headless on servers, VMs, CI pipelines. The only BRC-100 wallet that doesn't need a desktop or browser.
+- **Non-custodial** -- Your keys stay on your machine. No cloud service, no account, no third party.
+- **Wire-compatible** -- Any tool built for MetaNet Client works without modification. Same endpoints, same JSON format.
+- **Built for agents** -- AI agents, autonomous software, multi-wallet fleets. One wallet server, N agents pointing at it.
 
 ## CLI Commands
 
