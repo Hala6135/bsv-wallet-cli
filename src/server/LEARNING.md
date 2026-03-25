@@ -1,0 +1,16 @@
+# Learning — server
+
+## Lessons Learned
+- **[2026-02-24]** The `signableTransaction.reference` field caused a nasty double-encoding bug. The SDK stores it as `Vec<u8>` via `String.into_bytes()`, and our hex serde would re-encode the bytes. Fix: `String::from_utf8(st.reference)` in `handlers.rs:293` reverses `.into_bytes()` to recover the original cache key. Without this, `signAction`/`abortAction` silently fail to find the pending transaction.
+- **[2026-02-24]** `inputs: Some(vec![])` is not the same as `inputs: None` in `createAction`. Empty vec means "auto-select UTXOs for me"; `None` may trigger different SDK behavior. This distinction is invisible in JSON but critical for correct wallet operation.
+- **[2026-02-24]** Batches 4-6 (transaction, certificate, discovery endpoints) pass SDK arg types directly through serde — no `Mc*` wrapper structs needed because those SDK types already derive `Deserialize`. Batches 1-3 (crypto, core) require manual `Mc*` wrappers in `types.rs` because the SDK types lack serde derives. Before adding a new endpoint, check if the SDK type has serde — it determines your entire approach.
+
+## Debugging Insights
+- **[2026-02-24]** If a client gets silent field drops (e.g., `protocolID` arrives as `null`), check for the `#[serde(alias = "protocolID")]` annotation. Serde's `rename_all = "camelCase"` produces `protocolId` (lowercase d), but the MetaNet Client sends capital D. Every struct with `protocolID` or `keyID` needs the alias. Grep for `alias = "protocolID"` in `types.rs` to audit coverage.
+- **[2026-02-24]** `SQLITE_BUSY_SNAPSHOT` errors under concurrent requests mean the `SpendingLock` isn't being acquired. Only `createAction` holds this lock — if you add another spending endpoint, it must also acquire `spending_lock` from the axum `Extension`.
+- **[2026-02-24]** Error classification in `AppError::classify()` matches on message prefixes like `"Insufficient funds:"`. If the SDK changes its error message wording, the HTTP status codes silently degrade to the default 400. When debugging unexpected 400s, check that the SDK error string still starts with the expected prefix.
+
+## Pattern Notes
+- **[2026-02-24]** Handler pattern splits into two shapes: (1) **Translation handlers** — deserialize `Mc*` type, manually construct SDK args, call wallet method, manually build response. Used for crypto and core endpoints. (2) **Pass-through handlers** — deserialize directly into SDK args, call wallet, return SDK result as JSON. Used for batches 4-6. Pass-through is much less code but only works when SDK types have matching serde derives.
+- **[2026-02-24]** The `extract_originator` helper parses `Origin` as a URL to extract the hostname, or falls back to the raw `Originator` header. GET endpoints hardcode `"localhost"` instead. If you add a new POST endpoint, always call `extract_originator(&headers)?` — missing originator is a 400, not a silent default.
+- **[2026-02-24]** Layer ordering matters: CORS must be outermost so preflight OPTIONS requests get handled before auth. The auth middleware reads `ServerConfig` from axum `Extension`, not from `State` — this is because `State` is reserved for `WalletState`. Adding a second `State` extractor would require a different approach (nested routers or extension).

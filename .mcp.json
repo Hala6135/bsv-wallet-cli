@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "bsv-wallet": {
+      "type": "stdio",
+      "command": "cargo",
+      "args": ["run", "--release", "--manifest-path", "mcp/Cargo.toml"],
+      "env": {
+        "WALLET_URL": "http://localhost:3322"
+      }
+    }
+  }
+}

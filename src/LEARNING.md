@@ -1,0 +1,19 @@
+# Learning — src
+
+## Lessons Learned
+- **[2026-02-24]** `daemon` cannot reuse `WalletContext` because `Wallet::new` takes owned storage/services, not `Arc`s. The daemon needs separate `Arc`-wrapped instances for the `Monitor` and a second `StorageSqlx::open()` call for the wallet itself. Attempting to share one storage instance between Monitor and Wallet will fail at the type level.
+- **[2026-02-24]** The `signableTransaction.reference` field is stored in the SDK as `Vec<u8>` via `String.into_bytes()`. If you hex-encode those bytes over HTTP, the reference becomes double-encoded and `signAction`/`abortAction` can't find the pending tx in the cache. The fix is `String::from_utf8(st.reference)` to reverse `.into_bytes()`.
+- **[2026-02-24]** `init` is special — it runs before `ROOT_KEY` exists (it creates it), so it receives only `&cli.db`, not a `WalletContext`. It also calls `storage.migrate()` instead of `storage.make_available()` since the database doesn't exist yet.
+- **[2026-02-24]** BRC-29 address derivation uses hardcoded derivation prefix/suffix constants (`SfKxPIJNgdI=`, `NaGLC6fMH50=`) shared between `address.rs`, `split.rs`, and `fund.rs`. These must stay in sync — if one changes, all three break silently.
+
+## Debugging Insights
+- **[2026-02-24]** "no such table" errors after `StorageSqlx::open()` mean you forgot `make_available()`. The open/migrate/make_available sequence matters: `open` connects, `migrate` creates schema (first run only via `init`), `make_available` runs pending migrations for subsequent loads.
+- **[2026-02-24]** `SQLITE_BUSY_SNAPSHOT` during concurrent `createAction` calls means the `SpendingLock` isn't being acquired. The lock must be held across the entire `wallet.create_action()` call, not just the SQLite write. Check that the handler extracts `Extension(spending_lock)` correctly.
+- **[2026-02-24]** If crypto endpoints (`encrypt`, `createSignature`, etc.) return "Origin header required", the caller is missing the `Origin` HTTP header. Every POST handler calls `extract_originator()` which requires either `Origin` or `Originator` header — this catches both browser CORS and non-browser clients.
+- **[2026-02-24]** The `AppError::classify` method strips "wallet error: " prefix before matching. If error messages from the SDK change their prefix format, classification breaks silently and everything falls through to generic `400 ERROR`.
+
+## Pattern Notes
+- **[2026-02-24]** Crypto endpoints (Batch 3) need custom request types in `types.rs` because the SDK arg structs lack serde derives. Transaction/certificate/discovery endpoints (Batches 4-6) can deserialize directly into SDK types — the `Json<SdkArgs>` pattern works when SDK types have `#[derive(Deserialize)]`.
+- **[2026-02-24]** The `#[serde(alias = "protocolID")]` pattern is critical throughout `types.rs`. Serde's `rename_all = "camelCase"` converts `protocol_id` to `protocolId` (lowercase d), but the MetaNet Client sends `protocolID` (capital D). The alias accepts both. Same for `keyID`. Missing this alias causes silent deserialization failures with no error — the field just gets `None`/default.
+- **[2026-02-24]** GET endpoints (`isAuthenticated`, `getHeight`, `getNetwork`, `getVersion`, `waitForAuthentication`) don't require originator headers. POST endpoints always do. This split matches the MetaNet Client behavior — don't add originator extraction to GET handlers.
+- **[2026-02-24]** The `--json` flag propagates through `WalletContext.json_output` and every CLI command checks it for structured output. HTTP handlers always return JSON — the flag only affects CLI commands.

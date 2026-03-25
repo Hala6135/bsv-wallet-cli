@@ -1,0 +1,10 @@
+/target
+**/target
+*.db
+*.db-wal
+*.db-shm
+.env
+*.pem
+*.log
+.playwright-mcp/
+.claude-docs-logs/

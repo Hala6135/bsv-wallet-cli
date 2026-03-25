@@ -1,0 +1,22 @@
+[package]
+name = "bsv-wallet-mcp"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["John Calhoun"]
+description = "MCP server exposing all 28 BRC-100 wallet endpoints"
+repository = "https://github.com/Calhooon/bsv-wallet-cli"
+
+[[bin]]
+name = "bsv-wallet-mcp"
+path = "src/main.rs"
+
+[dependencies]
+rmcp = { version = "0.16", features = ["transport-io"] }
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+schemars = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
