@@ -4,6 +4,7 @@ use bsv_sdk::wallet::{ListOutputsArgs, WalletInterface};
 use bsv_wallet_toolbox::{
     Chain, Monitor, Services, ServicesOptions, StorageSqlx, Wallet, WalletStorageWriter,
 };
+use sqlx::Executor;
 use std::sync::Arc;
 
 use crate::cli::Cli;
@@ -22,6 +23,12 @@ pub async fn run(cli: &Cli) -> Result<()> {
 
     let storage = StorageSqlx::open(&cli.db).await?;
     storage.make_available().await?;
+    // Set busy_timeout so concurrent writes wait instead of returning SQLITE_BUSY.
+    // Without this, relinquishOutput racing with createAction gets error 517 instantly.
+    sqlx::query("PRAGMA busy_timeout = 500")
+        .execute(storage.pool())
+        .await
+        .ok();
 
     let make_services = |chain: Chain| -> anyhow::Result<Services> {
         let mut opts = match chain {
@@ -51,6 +58,10 @@ pub async fn run(cli: &Cli) -> Result<()> {
     // so we need to create a separate storage/services for the wallet)
     let storage2 = StorageSqlx::open(&cli.db).await?;
     storage2.make_available().await?;
+    sqlx::query("PRAGMA busy_timeout = 500")
+        .execute(storage2.pool())
+        .await
+        .ok();
     let services2 = make_services(chain)?;
     let wallet = Wallet::new(Some(root_key), storage2, services2)
         .await

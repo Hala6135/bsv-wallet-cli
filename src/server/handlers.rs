@@ -707,12 +707,17 @@ pub async fn list_outputs(
 }
 
 /// POST /relinquishOutput
+///
+/// Acquires SpendingLock because relinquish modifies UTXO state and can race
+/// with createAction on SQLite writes (previously caused SQLITE_BUSY errors).
 pub async fn relinquish_output(
     State(wallet): State<WalletState>,
+    axum::Extension(spending_lock): axum::Extension<super::SpendingLock>,
     headers: HeaderMap,
     Json(args): Json<RelinquishOutputArgs>,
 ) -> Result<Json<RelinquishOutputResult>, AppError> {
     let originator = extract_originator(&headers)?;
+    let _guard = spending_lock.lock().await;
     let result = wallet
         .relinquish_output(args, &originator)
         .await
