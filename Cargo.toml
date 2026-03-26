@@ -23,7 +23,7 @@ name = "bsv-wallet"
 path = "src/main.rs"
 
 [dependencies]
-bsv-wallet-toolbox = { package = "bsv-wallet-toolbox-rs", version = "0.1", features = ["sqlite"] }
+bsv-wallet-toolbox = { package = "bsv-wallet-toolbox-rs", version = "0.3", features = ["sqlite"] }
 bsv-sdk = { package = "bsv-rs", version = "0.3", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 clap = { version = "4", features = ["derive"] }
@@ -48,3 +48,4 @@ tls = ["axum-server"]
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }
 tempfile = "3"
+

@@ -2032,6 +2032,15 @@ async fn e2e_nosend_flow() {
         "noSend response should have noSendChange: {:?}",
         body
     );
+
+    // Clean up: abort the noSend transaction so its UTXOs don't pollute the pool
+    // for subsequent tests (e.g. e2e_sign_action_happy_path)
+    let _abort = post_json_ok(
+        &client,
+        &format!("{base}/abortAction"),
+        json!({ "reference": txid }),
+    )
+    .await;
 }
 
 // =============================================================================
