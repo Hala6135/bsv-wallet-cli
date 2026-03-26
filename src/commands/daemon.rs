@@ -4,7 +4,6 @@ use bsv_sdk::wallet::{ListOutputsArgs, WalletInterface};
 use bsv_wallet_toolbox::{
     Chain, Monitor, Services, ServicesOptions, StorageSqlx, Wallet, WalletStorageWriter,
 };
-use sqlx::Executor;
 use std::sync::Arc;
 
 use crate::cli::Cli;
