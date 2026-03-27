@@ -2186,12 +2186,7 @@ async fn e2e_create_action_broadcast_beef() {
     let txid = body["txid"]
         .as_str()
         .expect("broadcast response should have txid");
-    assert_eq!(
-        txid.len(),
-        64,
-        "txid should be 64 hex chars, got: {}",
-        txid
-    );
+    assert_eq!(txid.len(), 64, "txid should be 64 hex chars, got: {}", txid);
     assert!(
         txid.chars().all(|c| c.is_ascii_hexdigit()),
         "txid should be hex, got: {}",
