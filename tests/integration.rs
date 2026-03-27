@@ -2134,3 +2134,119 @@ async fn test_auth_token_enforcement() {
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["authenticated"], true);
 }
+
+// =============================================================================
+// E2E: BEEF broadcast test — createAction with OP_RETURN (real broadcast)
+// =============================================================================
+
+/// E2E: createAction with a 0-sat OP_RETURN output — verifies real broadcast succeeds.
+///
+/// This test actually broadcasts a transaction to the BSV network (~200 sats mining fee).
+/// It validates the full BEEF serialization → signing → broadcast pipeline.
+///
+/// Run:  WALLET_URL=http://localhost:3322 cargo test --test integration e2e_create_action_broadcast_beef -- --test-threads=1
+#[tokio::test]
+async fn e2e_create_action_broadcast_beef() {
+    let Some((base, client)) = e2e_setup() else {
+        eprintln!("Skipping e2e test: WALLET_URL not set");
+        return;
+    };
+
+    // OP_RETURN script: OP_0 OP_RETURN <"beef-broadcast-test">
+    // 00 6a 13 626565662d62726f6164636173742d74657374
+    let op_return_script = "006a13626565662d62726f6164636173742d74657374";
+
+    // Step 1: Create a broadcast action with OP_RETURN (signAndProcess:true, default)
+    let resp = post_json(
+        &client,
+        &format!("{base}/createAction"),
+        json!({
+            "description": "e2e BEEF broadcast test",
+            "outputs": [{
+                "lockingScript": op_return_script,
+                "satoshis": 0,
+                "outputDescription": "BEEF broadcast verification"
+            }],
+            "labels": ["e2e-test-broadcast"]
+        }),
+    )
+    .await;
+
+    let status = resp.status().as_u16();
+    let body: Value = resp.json().await.unwrap();
+
+    // Must succeed — if BEEF serialization or broadcast is broken, this fails
+    assert_eq!(
+        status, 200,
+        "createAction broadcast should succeed (status {}): {:?}",
+        status, body
+    );
+
+    // Step 2: Verify txid is a valid 64-char hex string
+    let txid = body["txid"]
+        .as_str()
+        .expect("broadcast response should have txid");
+    assert_eq!(
+        txid.len(),
+        64,
+        "txid should be 64 hex chars, got: {}",
+        txid
+    );
+    assert!(
+        txid.chars().all(|c| c.is_ascii_hexdigit()),
+        "txid should be hex, got: {}",
+        txid
+    );
+
+    // Step 3: Verify no signableTransaction (tx was signed and broadcast)
+    assert!(
+        body.get("signableTransaction").is_none() || body["signableTransaction"].is_null(),
+        "broadcast response should not have signableTransaction"
+    );
+
+    // Step 4: Verify no error fields
+    assert!(
+        body.get("error").is_none() || body["error"].is_null(),
+        "broadcast response should not have error: {:?}",
+        body
+    );
+
+    eprintln!("BEEF broadcast succeeded! txid: {}", txid);
+
+    // Step 5: Verify the action appears in listActions
+    let actions_body = post_json_ok(
+        &client,
+        &format!("{base}/listActions"),
+        json!({
+            "labels": [{"label": "e2e-test-broadcast", "mode": "any"}],
+            "includeLabels": true,
+            "includeOutputs": true
+        }),
+    )
+    .await;
+
+    let total = actions_body["totalActions"]
+        .as_u64()
+        .expect("totalActions should be a number");
+    assert!(
+        total >= 1,
+        "should have at least 1 action with e2e-test-broadcast label, got {}",
+        total
+    );
+
+    // Step 6: Verify the action's txid matches
+    let actions = actions_body["actions"]
+        .as_array()
+        .expect("actions should be an array");
+    let found = actions.iter().any(|a| a["txid"].as_str() == Some(txid));
+    assert!(
+        found,
+        "broadcast txid {} should appear in listActions results",
+        txid
+    );
+
+    eprintln!(
+        "BEEF broadcast E2E complete: txid={}, found in listActions=true",
+        txid
+    );
+}
