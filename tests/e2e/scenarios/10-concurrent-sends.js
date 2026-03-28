@@ -35,7 +35,7 @@ module.exports = {
           outputDescription: `Concurrent send #${i + 1} of ${concurrency}`,
           tags: ['e2e-concurrent'],
         }], `E2E.4: concurrent #${i + 1}`)
-          .then(r => ({ status: 'ok', txid: r.txid, index: i }))
+          .then(r => ({ status: 'ok', txid: r.txid, tx: r.tx, index: i }))
           .catch(e => ({ status: 'error', error: e.message, index: i }))
       );
     }
@@ -65,11 +65,19 @@ module.exports = {
     assert(txids.size === concurrency,
       `All ${concurrency} txids must be unique, got ${txids.size}`);
 
-    // B internalizes all (using direct BEEF from responses)
-    let internalized = 0;
+    // B internalizes all (so sats can be swept back)
     for (const r of succeeded) {
-      // Re-fetch the full result to get tx bytes (our concurrent results may not have full data)
-      // Actually the results should already have tx bytes from createAction
+      if (r.tx && r.tx.length > 0) {
+        await walletB.client.internalizeAction(r.tx, [{
+          outputIndex: 0,
+          protocol: 'wallet payment',
+          paymentRemittance: {
+            derivationPrefix: 'SfKxPIJNgdI=',
+            derivationSuffix: 'NaGLC6fMH50=',
+            senderIdentityKey: ANYONE_KEY,
+          },
+        }], `internalize concurrent send #${r.index + 1}`);
+      }
     }
 
     // Check balances

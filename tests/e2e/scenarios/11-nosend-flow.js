@@ -57,6 +57,10 @@ module.exports = {
     );
     assert(internalized.accepted === true, 'B must accept the noSend tx');
 
+    // Abort the nosend tx to release A's locked UTXOs — don't leave the wallet dirty
+    const nosendRef = result.reference || result.txid;
+    await walletA.client.post('abortAction', { reference: nosendRef });
+
     return { txid: result.txid, wocConfirmed: 'n/a (noSend)', sats: amount };
   },
 };

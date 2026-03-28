@@ -49,6 +49,10 @@ module.exports = {
       : signed.txid;
     assert(txidHex.length === 64, `txid hex must be 64 chars, got ${txidHex.length}`);
 
+    // Note: signAction returns raw tx, not BEEF — can't internalize in B.
+    // The 3K sats go to B's address on chain but B can't track them.
+    // This is a known limitation of the deferred signing flow.
+
     // WoC audit (quick check, don't block on chained unconfirmed)
     let wocOk = false;
     try {

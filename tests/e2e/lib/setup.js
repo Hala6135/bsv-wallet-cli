@@ -82,49 +82,52 @@ async function fundWallet(wallet, satoshis) {
  * as possible. This prevents losing sats when a scenario creates unspendable outputs.
  */
 async function sweepToFunder(wallet) {
-  const balance = parseInt(
-    execSync(`cd "${wallet.dir}" && "${BSV}" balance`, { encoding: 'utf-8' }).trim(),
-  );
+  // Use HTTP API for full balance (covers all baskets)
+  const balance = await wallet.client.balance();
 
   if (balance < 600) {
     console.log(`  ${wallet.client.name}: ${balance} sats (dust, skipping sweep)`);
     return 0;
   }
 
-  const funderAddr = execSync(
-    `cd "${FUNDER_DIR}" && "${BSV}" address`, { encoding: 'utf-8' },
-  ).trim();
+  // Get funder's receiving key via HTTP API
+  const funderClient = new WalletClient(FUNDER_PORT, 'funder');
+  const funderKey = await funderClient.getPublicKey(
+    [2, '3241645161d8'], 'SfKxPIJNgdI= NaGLC6fMH50=', ANYONE_KEY, true,
+  );
+  const funderScript = buildP2PKH(funderKey.publicKey);
 
-  // Try full sweep first, then halve on failure to recover what we can
   let sweepAmount = balance - 300; // leave room for fee
   let swept = 0;
 
   for (let attempt = 0; attempt < 4 && sweepAmount >= 600; attempt++) {
     try {
-      const rawResult = execSync(
-        `cd "${wallet.dir}" && "${BSV}" --json send "${funderAddr}" ${sweepAmount}`,
-        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-      ).trim();
-
-      const parsed = JSON.parse(extractJson(rawResult));
-
-      // Funder internalizes directly
-      execSync(
-        `cd "${FUNDER_DIR}" && "${BSV}" fund "${parsed.beef}" --vout 0`,
-        { stdio: ['pipe', 'pipe', 'pipe'] },
+      const result = await wallet.client.createAction(
+        [{ lockingScript: funderScript, satoshis: sweepAmount, outputDescription: 'sweep to funder' }],
+        `sweep ${sweepAmount} sats back to funder`,
       );
+
+      // Funder internalizes the BEEF
+      await funderClient.internalizeAction(result.tx, [{
+        outputIndex: 0,
+        protocol: 'wallet payment',
+        paymentRemittance: {
+          derivationPrefix: 'SfKxPIJNgdI=',
+          derivationSuffix: 'NaGLC6fMH50=',
+          senderIdentityKey: ANYONE_KEY,
+        },
+      }], `sweep from ${wallet.client.name}`);
 
       console.log(`  ${wallet.client.name}: swept ${sweepAmount} sats back to funder`);
       swept += sweepAmount;
       break;
     } catch (e) {
       if (attempt < 3) {
-        // Halve the amount and retry — some UTXOs may be unspendable
         const prev = sweepAmount;
         sweepAmount = Math.floor(sweepAmount / 2);
-        console.log(`  ${wallet.client.name}: sweep ${prev} failed, retrying with ${sweepAmount}`);
+        console.log(`  ${wallet.client.name}: sweep ${prev} failed (${e.message.slice(0, 60)}), retrying with ${sweepAmount}`);
       } else {
-        console.log(`  WARNING: ${wallet.client.name}: could not sweep (${sweepAmount} sats stuck)`);
+        console.log(`  WARNING: ${wallet.client.name}: could not sweep (${sweepAmount} sats stuck: ${e.message.slice(0, 80)})`);
       }
     }
   }
