@@ -2213,7 +2213,7 @@ async fn e2e_create_action_broadcast_beef() {
         &client,
         &format!("{base}/listActions"),
         json!({
-            "labels": [{"label": "e2e-test-broadcast", "mode": "any"}],
+            "labels": ["e2e-test-broadcast"],
             "includeLabels": true,
             "includeOutputs": true
         }),
