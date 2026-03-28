@@ -14,6 +14,7 @@
  *   5. Verify both txids on WoC
  */
 const { verifyOnChain } = require('../lib/woc');
+const { ANYONE_KEY, buildP2PKH } = require('../lib/wallet-client');
 
 module.exports = {
   name: 'beef-roundtrip-broadcast',
@@ -21,32 +22,23 @@ module.exports = {
 
   async run(walletA, walletB, assert) {
     // Get B's identity key for payment derivation
-    const bIdentity = await walletB.identityKey();
+    const bIdentity = await walletB.client.identityKey();
     assert(bIdentity && bIdentity.length === 66, `B identity key should be 66 hex chars, got ${bIdentity?.length}`);
 
     // Step 1: A creates a payment to B via HTTP createAction
     // This exercises the full BEEF construction path:
     //   pick input UTXOs → sign → build BEEF with ancestors → broadcast via ARC
-    const bPubkey = await walletB.getPublicKey(
+    // Use ANYONE_KEY + forSelf=true (same pattern as scenario 01)
+    const bPubkey = await walletB.client.getPublicKey(
       [2, '3241645161d8'],       // BRC-29 payment protocol
-      'e2e-beef-test payment-1', // unique key_id
-      bIdentity,                 // counterparty = A's identity (from B's perspective, A is the sender)
-      false,                     // forSelf = false (derive B's receiving key)
+      'e2e-beef-14 payment-1',   // unique key_id for this scenario
+      ANYONE_KEY,                // counterparty = anyone (standard payment derivation)
+      true,                      // forSelf = true (B derives own receiving key)
     );
-
-    // Build P2PKH locking script from B's derived pubkey
-    const bPubkeyHex = bPubkey.publicKey;
-    assert(bPubkeyHex.length === 66, `derived pubkey should be 66 hex chars, got ${bPubkeyHex.length}`);
-
-    // Simple P2PKH: OP_DUP OP_HASH160 <20-byte-hash> OP_EQUALVERIFY OP_CHECKSIG
-    const crypto = require('crypto');
-    const pubkeyBuf = Buffer.from(bPubkeyHex, 'hex');
-    const sha256 = crypto.createHash('sha256').update(pubkeyBuf).digest();
-    const hash160 = crypto.createHash('ripemd160').update(sha256).digest();
-    const lockingScript = '76a914' + hash160.toString('hex') + '88ac';
+    const lockingScript = buildP2PKH(bPubkey.publicKey);
 
     const sendAmount = 5000; // 5000 sats — enough to be meaningful
-    const result = await walletA.post('createAction', {
+    const result = await walletA.client.post('createAction', {
       description: 'E2E BEEF round-trip test: A→B',
       outputs: [{
         lockingScript,
@@ -64,15 +56,15 @@ module.exports = {
     const txBytes = result.tx; // array of u8
     assert(txBytes && txBytes.length > 0, 'createAction should return tx bytes');
 
-    await walletB.post('internalizeAction', {
+    await walletB.client.post('internalizeAction', {
       tx: txBytes,
       outputs: [{
         outputIndex: 0, // first output is our payment
         protocol: 'wallet payment',
         paymentRemittance: {
-          derivationPrefix: 'e2e-beef-test',
+          derivationPrefix: 'e2e-beef-14',
           derivationSuffix: 'payment-1',
-          senderIdentityKey: await walletA.identityKey(),
+          senderIdentityKey: ANYONE_KEY,
         },
       }],
       description: 'E2E BEEF round-trip: internalize from A',
@@ -80,18 +72,15 @@ module.exports = {
 
     // Step 3: B sends back to A — this proves B can spend the UTXO
     // (the UTXO's BEEF ancestry must be valid for B's createAction to broadcast)
-    const aPubkey = await walletA.getPublicKey(
+    const aPubkey = await walletA.client.getPublicKey(
       [2, '3241645161d8'],
-      'e2e-beef-test return-1',
-      await walletA.identityKey(), // self
+      'e2e-beef-14 return-1',
+      ANYONE_KEY,
       true,
     );
-    const aPubkeyBuf = Buffer.from(aPubkey.publicKey, 'hex');
-    const aSha256 = crypto.createHash('sha256').update(aPubkeyBuf).digest();
-    const aHash160 = crypto.createHash('ripemd160').update(aSha256).digest();
-    const aLockingScript = '76a914' + aHash160.toString('hex') + '88ac';
+    const aLockingScript = buildP2PKH(aPubkey.publicKey);
 
-    const returnResult = await walletB.post('createAction', {
+    const returnResult = await walletB.client.post('createAction', {
       description: 'E2E BEEF round-trip test: B→A (return)',
       outputs: [{
         lockingScript: aLockingScript,

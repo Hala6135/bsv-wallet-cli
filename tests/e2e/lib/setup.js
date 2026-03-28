@@ -11,7 +11,7 @@ const { fetchBeef, buildAtomicBEEF, sleep } = require('./woc');
 
 const BSV = path.resolve(__dirname, '../../../target/release/bsv-wallet');
 const FUNDER_PORT = 3322;
-const FUNDER_DIR = path.resolve(__dirname, '../../../'); // where funder's .env lives
+const FUNDER_DIR = process.env.FUNDER_DIR || path.resolve(__dirname, '../../../');
 
 /**
  * Initialize and start a wallet on a given port.

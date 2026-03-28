@@ -19,7 +19,7 @@ const path = require('path');
 const fs = require('fs');
 
 const BSV = path.resolve(__dirname, '../../target/release/bsv-wallet');
-const FUNDER_DIR = path.resolve(__dirname, '../../');
+const FUNDER_DIR = process.env.FUNDER_DIR || path.resolve(__dirname, '../../');
 
 // Parse CLI args
 const args = process.argv.slice(2);
@@ -65,7 +65,7 @@ async function main() {
     console.log(`  Wallet B: :3324 (${walletB.identityKey.slice(0, 12)}...)  ${walletB.address}`);
 
     // Fund wallet A
-    const fundAmount = 100_000;
+    const fundAmount = 300_000;
     console.log(`  Funding A with ${fundAmount.toLocaleString()} sats from funder...`);
     const funded = await fundWallet(walletA, fundAmount);
     console.log(`  Funded: txid=${funded.txid.slice(0, 16)}...`);
