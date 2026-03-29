@@ -2521,16 +2521,8 @@ async fn e2e_sequential_broadcasts() {
         .expect("actions should be an array");
     let found1 = actions.iter().any(|a| a["txid"].as_str() == Some(txid1));
     let found2 = actions.iter().any(|a| a["txid"].as_str() == Some(txid2));
-    assert!(
-        found1,
-        "first txid {} should appear in listActions",
-        txid1
-    );
-    assert!(
-        found2,
-        "second txid {} should appear in listActions",
-        txid2
-    );
+    assert!(found1, "first txid {} should appear in listActions", txid1);
+    assert!(found2, "second txid {} should appear in listActions", txid2);
 
     eprintln!(
         "Sequential broadcasts E2E complete: txid1={}, txid2={}, both found in listActions",
