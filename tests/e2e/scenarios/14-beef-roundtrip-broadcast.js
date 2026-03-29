@@ -93,6 +93,21 @@ module.exports = {
     assert(returnResult.txid.length === 64, `B→A txid should be 64 hex chars`);
     console.log(`    B→A txid: ${returnResult.txid}`);
 
+    // A internalizes the return payment so the sats are tracked
+    await walletA.client.post('internalizeAction', {
+      tx: returnResult.tx,
+      outputs: [{
+        outputIndex: 0,
+        protocol: 'wallet payment',
+        paymentRemittance: {
+          derivationPrefix: 'e2e-beef-14',
+          derivationSuffix: 'return-1',
+          senderIdentityKey: ANYONE_KEY,
+        },
+      }],
+      description: 'E2E BEEF round-trip: internalize return from B',
+    });
+
     // Step 4: Verify both on WoC
     const woc1 = await verifyOnChain(result.txid, { maxRetries: 8, baseDelay: 1500 });
     assert(woc1.confirmed, `A→B tx ${result.txid} must appear on WoC`);
