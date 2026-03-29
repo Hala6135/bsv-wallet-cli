@@ -22,7 +22,10 @@ pub async fn run(db_path: &str, key: Option<&str>) -> Result<()> {
     let deriver = KeyDeriver::new(Some(private_key.clone()));
     let (_, anyone_pubkey) = KeyDeriver::anyone_key();
     let protocol = Protocol::new(SecurityLevel::Counterparty, BRC29_PROTOCOL);
-    let key_id = format!("{} {}", DEFAULT_DERIVATION_PREFIX, DEFAULT_DERIVATION_SUFFIX);
+    let key_id = format!(
+        "{} {}",
+        DEFAULT_DERIVATION_PREFIX, DEFAULT_DERIVATION_SUFFIX
+    );
     let derived_pubkey = deriver.derive_public_key(
         &protocol,
         &key_id,
