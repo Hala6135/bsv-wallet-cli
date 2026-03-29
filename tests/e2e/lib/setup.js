@@ -133,7 +133,7 @@ function teardownWallet(wallet) {
 
 /**
  * Extract JSON from CLI output that may contain tracing log lines.
- * Finds the line starting with '{' and returns it.
+ * Finds the line starting with '{' and returns it (for single-line JSON).
  */
 function extractJson(output) {
   const lines = output.split('\n');
@@ -144,4 +144,21 @@ function extractJson(output) {
   throw new Error(`No JSON found in output: ${output.slice(0, 200)}`);
 }
 
-module.exports = { startWallet, fundWallet, sweepToFunder, teardownWallet, extractJson, BSV, FUNDER_PORT };
+/**
+ * Parse JSON from CLI output that may be multi-line (pretty-printed).
+ * Tries JSON.parse on the full output first, then extracts from first '{' to last '}'.
+ */
+function parseCliJson(output) {
+  const trimmed = output.trim();
+  // Try direct parse first (handles both single-line and multi-line)
+  try { return JSON.parse(trimmed); } catch { /* fall through */ }
+  // Find first '{' and last '}' to extract the JSON block
+  const start = trimmed.indexOf('{');
+  const end = trimmed.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error(`No JSON found in output: ${trimmed.slice(0, 200)}`);
+  }
+  return JSON.parse(trimmed.slice(start, end + 1));
+}
+
+module.exports = { startWallet, fundWallet, sweepToFunder, teardownWallet, extractJson, parseCliJson, BSV, FUNDER_PORT };

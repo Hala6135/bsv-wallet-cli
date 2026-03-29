@@ -49,12 +49,65 @@ bsv-wallet serve --port 3322
 # Run tests (41 synthetic tests, no server needed)
 cargo test --test integration
 
-# E2E tests (requires a running daemon with funded wallet)
-bsv-wallet daemon &
-WALLET_URL=http://localhost:3322 cargo test --test integration e2e_ -- --test-threads=1
+# E2E tests (Node.js, requires funder wallet on :3320)
+# See "E2E Testing" section below for full setup.
+node tests/e2e/run.js                   # all 21 scenarios
+node tests/e2e/run.js --scenario 16     # single scenario
+node tests/e2e/run.js --dry-run         # setup only, no scenarios
+node tests/e2e/run.js --skip-woc        # skip WoC verification (faster)
 ```
 
 Environment variables: `ROOT_KEY` (required, set by `bsv-wallet init`), `CHAINTRACKS_URL` (optional, for chain tracking), `AUTH_TOKEN` (optional, bearer auth), `RUST_LOG` for tracing. Note: port is set via `--port` CLI flag, not an environment variable.
+
+## E2E Testing
+
+The E2E test suite (`tests/e2e/`) is a Node.js harness that spawns fresh wallets and runs 21 scenarios covering the HTTP API, CLI commands, MCP server, and database inspector UI.
+
+### E2E Funder Wallet
+
+A dedicated funder wallet on port 3320 provides initial funds and receives sweep-back after each run.
+
+- **Location**: `e2e-funder/` directory (gitignored — contains wallet.db and .env)
+- **Port**: 3320 (configurable via `FUNDER_PORT` env var)
+- **Default funding**: 50,000 sats per run (configurable via `FUND_AMOUNT` env var)
+- **SwiftBar**: Blue "E2E" icon in menu bar (`~/bsv-wallet-cli-runner/e2e-funder.30s.sh`)
+
+**Setup (first time only):**
+```bash
+mkdir -p e2e-funder
+cd e2e-funder && ../target/release/bsv-wallet init
+# Fund the funder wallet's address, then:
+../target/release/bsv-wallet split --count 5
+```
+
+**Before each run:**
+```bash
+cd e2e-funder && ../target/release/bsv-wallet daemon --port 3320 &
+```
+
+### Scenario Coverage (21 scenarios)
+
+| # | Name | Tests | Cost |
+|---|------|-------|------|
+| 01-15 | HTTP API scenarios | All 28 endpoints, crypto, certs, baskets, concurrency | ~3K sats |
+| 16 | CLI parity | identity, balance, outputs, actions match HTTP | 0 sats |
+| 17 | CLI split + spend | Split UTXOs, spend from split output | fees only |
+| 18 | CLI compact | BEEF compaction, balance unchanged | 0 sats |
+| 19 | CLI services | Chain/height via services command | 0 sats |
+| 20 | UI (Playwright) | Database inspector UI renders, API + browser | 0 sats |
+| 21 | MCP server parity | All 29 MCP tools vs HTTP API | 0 sats |
+
+### Dependencies
+
+Scenario 20 (UI) requires Playwright:
+```bash
+cd tests/e2e && npm install
+npx playwright install chromium
+```
+
+### Budget
+
+Net cost per run: ~3,000 sats (fees). Hard fail if net cost exceeds 5,000 sats.
 
 ## Decisions
 

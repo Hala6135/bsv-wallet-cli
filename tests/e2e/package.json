@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "E2E test dependencies for bsv-wallet-cli",
+  "dependencies": {
+    "playwright": "^1.58.0"
+  }
+}
