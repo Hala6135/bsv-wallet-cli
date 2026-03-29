@@ -31,12 +31,15 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build release binaries
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --workspace --release --target ${{ matrix.target }}
 
       - name: Package binaries
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../bsv-wallet-${{ matrix.target }}.tar.gz bsv-wallet bsv-wallet-mcp
+          # Package all available binaries (bsv-wallet-mcp may not build on all targets)
+          BINS="bsv-wallet"
+          if [ -f bsv-wallet-mcp ]; then BINS="$BINS bsv-wallet-mcp"; fi
+          tar czf ../../../bsv-wallet-${{ matrix.target }}.tar.gz $BINS
           cd ../../..
 
       - name: Upload artifact
