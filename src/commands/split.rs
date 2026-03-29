@@ -1,9 +1,11 @@
 use anyhow::Result;
 use bsv_sdk::primitives::to_hex;
 use bsv_sdk::script::templates::P2PKH;
+use bsv_sdk::transaction::Beef;
 use bsv_sdk::wallet::{
-    Counterparty, CreateActionArgs, CreateActionOptions, CreateActionOutput, KeyDeriver,
-    ListOutputsArgs, Protocol, SecurityLevel, WalletInterface,
+    Counterparty, CreateActionArgs, CreateActionOptions, CreateActionOutput, InternalizeActionArgs,
+    InternalizeOutput, KeyDeriver, ListOutputsArgs, Protocol, SecurityLevel, WalletInterface,
+    WalletPayment,
 };
 
 use crate::context::WalletContext;
@@ -85,7 +87,11 @@ pub async fn run(ctx: &WalletContext, count: u32) -> Result<()> {
         );
     }
 
-    // Build outputs
+    let (_, anyone_pubkey_for_sender) = KeyDeriver::anyone_key();
+    let sender_identity_key = anyone_pubkey_for_sender.to_hex();
+
+    // Build outputs — tagged relinquish so createAction doesn't track them as ours.
+    // We'll self-internalize after to get proper derivation stored.
     let outputs: Vec<CreateActionOutput> = (0..count)
         .map(|_| CreateActionOutput {
             locking_script: lock_bytes.clone(),
@@ -93,7 +99,7 @@ pub async fn run(ctx: &WalletContext, count: u32) -> Result<()> {
             output_description: "split output".to_string(),
             basket: Some("default".to_string()),
             custom_instructions: None,
-            tags: None,
+            tags: Some(vec!["relinquish".to_string()]),
         })
         .collect();
 
@@ -117,6 +123,40 @@ pub async fn run(ctx: &WalletContext, count: u32) -> Result<()> {
 
     let txid = result.txid.expect("Expected txid from split transaction");
     let txid_hex = to_hex(&txid);
+
+    // Self-internalize each split output with wallet payment protocol
+    // so the wallet stores proper derivation info and can sign for them.
+    if let Some(beef_bytes) = &result.beef {
+        if let Ok(mut beef) = Beef::from_binary(beef_bytes) {
+            if let Ok(atomic_bytes) = beef.to_binary_atomic(&txid_hex) {
+                let internalize_outputs: Vec<InternalizeOutput> = (0..count)
+                    .map(|i| InternalizeOutput {
+                        output_index: i,
+                        protocol: "wallet payment".to_string(),
+                        payment_remittance: Some(WalletPayment {
+                            derivation_prefix: DEFAULT_DERIVATION_PREFIX.to_string(),
+                            derivation_suffix: DEFAULT_DERIVATION_SUFFIX.to_string(),
+                            sender_identity_key: sender_identity_key.clone(),
+                        }),
+                        insertion_remittance: None,
+                    })
+                    .collect();
+
+                ctx.wallet
+                    .internalize_action(
+                        InternalizeActionArgs {
+                            tx: atomic_bytes,
+                            outputs: internalize_outputs,
+                            description: "Self-internalize split outputs".to_string(),
+                            labels: Some(vec!["split".to_string()]),
+                            seek_permission: None,
+                        },
+                        "bsv-wallet-cli",
+                    )
+                    .await?;
+            }
+        }
+    }
 
     if ctx.json_output {
         println!(

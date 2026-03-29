@@ -1,6 +1,6 @@
 /**
  * Multi-wallet setup and teardown.
- * Spawns fresh wallets on test ports, funds them from the funder on :3322.
+ * Spawns fresh wallets on test ports, funds them from the e2e funder (default :3320).
  */
 
 const { execSync, spawn } = require('child_process');
@@ -10,8 +10,8 @@ const { WalletClient, ANYONE_KEY, buildP2PKH } = require('./wallet-client');
 const { fetchBeef, buildAtomicBEEF, sleep } = require('./woc');
 
 const BSV = path.resolve(__dirname, '../../../target/release/bsv-wallet');
-const FUNDER_PORT = 3322;
-const FUNDER_DIR = process.env.FUNDER_DIR || path.resolve(__dirname, '../../../');
+const FUNDER_PORT = parseInt(process.env.FUNDER_PORT || '3320');
+const FUNDER_DIR = process.env.FUNDER_DIR || path.resolve(__dirname, '..', '..', '..', 'e2e-funder');
 
 /**
  * Initialize and start a wallet on a given port.
@@ -49,28 +49,14 @@ async function startWallet(port, name) {
 }
 
 /**
- * Fund a wallet from the funder on :3322 using CLI.
- * Uses --json send to get BEEF, then fund directly (no WoC).
+ * Fund a wallet from the funder via HTTP API (wallet-to-wallet transfer).
+ * The funder daemon on FUNDER_PORT handles UTXO selection and signing.
+ * The recipient internalizes the AtomicBEEF directly — no WoC needed.
  */
 async function fundWallet(wallet, satoshis) {
-  // Send from funder to wallet's address using --json for BEEF output.
-  // Note: tracing logs may be mixed into stdout, so we extract only the JSON line.
-  const rawResult = execSync(
-    `cd "${FUNDER_DIR}" && "${BSV}" --json send "${wallet.address}" ${satoshis}`,
-    { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-  ).trim();
-
-  const result = extractJson(rawResult);
-  const parsed = JSON.parse(result);
-  if (!parsed.beef) throw new Error('Funder send did not return BEEF');
-
-  // Wallet internalizes directly from BEEF (no WoC!)
-  execSync(
-    `cd "${wallet.dir}" && "${BSV}" fund "${parsed.beef}" --vout 0`,
-    { stdio: ['pipe', 'pipe', 'pipe'] },
-  );
-
-  return { txid: parsed.txid, sats: satoshis };
+  const funderClient = new WalletClient(FUNDER_PORT, 'funder');
+  const result = await funderClient.transferTo(wallet.client, satoshis, 'e2e funding');
+  return { txid: result.txid, sats: satoshis };
 }
 
 /**

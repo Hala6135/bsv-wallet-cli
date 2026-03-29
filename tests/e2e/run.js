@@ -2,7 +2,7 @@
 /**
  * bsv-wallet-cli E2E Test Runner
  *
- * Spawns two fresh wallets on :3323 and :3324, funds them from the funder on :3322,
+ * Spawns two fresh wallets on :3323 and :3324, funds them from the e2e funder on :3320,
  * runs scenarios, verifies on WoC, then sweeps everything back to the funder.
  *
  * Usage:
@@ -12,14 +12,10 @@
  *   node run.js --skip-woc         # Skip WoC verification (faster)
  */
 
-const { startWallet, fundWallet, sweepToFunder, teardownWallet } = require('./lib/setup');
+const { startWallet, fundWallet, sweepToFunder, teardownWallet, FUNDER_PORT } = require('./lib/setup');
 const { WalletClient } = require('./lib/wallet-client');
-const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-
-const BSV = path.resolve(__dirname, '../../target/release/bsv-wallet');
-const FUNDER_DIR = process.env.FUNDER_DIR || path.resolve(__dirname, '../../');
 
 // Parse CLI args
 const args = process.argv.slice(2);
@@ -41,21 +37,19 @@ async function main() {
 
   try {
     // Check funder is running
-    const funder = new WalletClient(3322, 'funder');
+    const funder = new WalletClient(FUNDER_PORT, 'funder');
     try { await funder.isAuthenticated(); } catch {
-      console.error('ERROR: Funder wallet not running on :3322');
+      console.error(`ERROR: Funder wallet not running on :${FUNDER_PORT}`);
       process.exit(1);
     }
 
-    funderBalanceBefore = parseInt(
-      execSync(`cd "${FUNDER_DIR}" && "${BSV}" balance`, { encoding: 'utf-8' }).trim(),
-    );
+    funderBalanceBefore = await funder.balance();
 
     console.log('');
     console.log('================================================================');
     console.log('  bsv-wallet-cli E2E Test Suite');
     console.log('================================================================');
-    console.log(`  Funder: :3322  Balance: ${funderBalanceBefore.toLocaleString()} sats`);
+    console.log(`  Funder: :${FUNDER_PORT}  Balance: ${funderBalanceBefore.toLocaleString()} sats`);
 
     // Start test wallets
     console.log('  Starting test wallets...');
@@ -65,14 +59,12 @@ async function main() {
     console.log(`  Wallet B: :3324 (${walletB.identityKey.slice(0, 12)}...)  ${walletB.address}`);
 
     // Fund wallet A
-    const fundAmount = 300_000;
+    const fundAmount = parseInt(process.env.FUND_AMOUNT || '50000');
     console.log(`  Funding A with ${fundAmount.toLocaleString()} sats from funder...`);
     const funded = await fundWallet(walletA, fundAmount);
     console.log(`  Funded: txid=${funded.txid.slice(0, 16)}...`);
 
-    const aBalance = parseInt(
-      execSync(`cd "${walletA.dir}" && "${BSV}" balance`, { encoding: 'utf-8' }).trim(),
-    );
+    const aBalance = await walletA.client.balance();
     console.log(`  A balance: ${aBalance.toLocaleString()} sats`);
     console.log('================================================================');
 
@@ -102,6 +94,10 @@ async function main() {
         assertions.push(`OK: ${message}`);
       }
 
+      // Balance checkpoint before scenario
+      const aBalBefore = await walletA.client.balance();
+      const bBalBefore = await walletB.client.balance();
+
       console.log(`  [${num}] ${scenario.name}: ${scenario.description}`);
       const start = Date.now();
 
@@ -110,8 +106,17 @@ async function main() {
           setTimeout(() => reject(new Error('TIMEOUT: scenario exceeded 120s')), 120_000));
         const result = await Promise.race([scenario.run(walletA, walletB, assert), timeout]);
         const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+
+        // Balance checkpoint after scenario
+        const aBalAfter = await walletA.client.balance();
+        const bBalAfter = await walletB.client.balance();
+        const aDelta = aBalAfter - aBalBefore;
+        const bDelta = bBalAfter - bBalBefore;
+        const netLeak = -(aDelta + bDelta); // positive = sats left the system
+
         console.log(`       PASS (${elapsed}s) txid=${result.txid?.slice(0, 12) || 'n/a'}... woc=${result.wocConfirmed || 'n/a'}`);
-        results.push({ num, name: scenario.name, status: 'PASS', elapsed, ...result });
+        console.log(`       A: ${aBalAfter} (${aDelta >= 0 ? '+' : ''}${aDelta})  B: ${bBalAfter} (${bDelta >= 0 ? '+' : ''}${bDelta})  net: ${netLeak > 0 ? '-' : '+'}${Math.abs(netLeak)} sats`);
+        results.push({ num, name: scenario.name, status: 'PASS', elapsed, netLeak, ...result });
       } catch (e) {
         const elapsed = ((Date.now() - start) / 1000).toFixed(1);
         console.log(`       FAIL (${elapsed}s): ${e.message}`);
@@ -141,9 +146,8 @@ async function main() {
     if (walletA) teardownWallet(walletA);
 
     // Final accounting
-    const funderBalanceAfter = parseInt(
-      execSync(`cd "${FUNDER_DIR}" && "${BSV}" balance`, { encoding: 'utf-8' }).trim(),
-    );
+    const funderClient = new WalletClient(FUNDER_PORT, 'funder');
+    const funderBalanceAfter = await funderClient.balance();
 
     const passed = results.filter(r => r.status === 'PASS').length;
     const total = results.length;
@@ -156,25 +160,27 @@ async function main() {
 
     for (const r of results) {
       const icon = r.status === 'PASS' ? 'OK' : '!!';
-      console.log(`  [${icon}] ${r.num}. ${r.name}: ${r.status} (${r.elapsed}s)`);
+      const leak = r.netLeak != null ? ` leak=${r.netLeak}` : '';
+      console.log(`  [${icon}] ${r.num}. ${r.name}: ${r.status} (${r.elapsed}s)${leak}`);
     }
 
+    const totalLeak = results.reduce((s, r) => s + (r.netLeak || 0), 0);
+
     console.log('----------------------------------------------------------------');
-    console.log(`  Passed:       ${passed}/${total}`);
+    console.log(`  Passed:        ${passed}/${total}`);
     console.log(`  Funder before: ${funderBalanceBefore.toLocaleString()} sats`);
     console.log(`  Funder after:  ${funderBalanceAfter.toLocaleString()} sats`);
     console.log(`  Net cost:      ${netCost.toLocaleString()} sats`);
-    console.log(`  A/B balance:   0 (swept)`);
+    console.log(`  Scenario leak: ${totalLeak.toLocaleString()} sats (sum of per-scenario A+B deltas)`);
     console.log('================================================================');
 
-    // Check wallets are empty
-    if (walletA) {
-      try {
-        const aRemaining = parseInt(
-          execSync(`cd "${walletA.dir}" && "${BSV}" balance`, { encoding: 'utf-8' }).trim(),
-        );
-        if (aRemaining > 0) console.log(`  WARNING: A still has ${aRemaining} sats (dust)`);
-      } catch { /* already torn down */ }
+    // Hard fail if net cost exceeds budget.
+    // Expected: ~1,300 sats (fees) + ~2,000 (pending internalized outputs not yet spendable).
+    // Anything over 5K indicates a real leak.
+    const MAX_ACCEPTABLE_COST = 5_000;
+    if (netCost > MAX_ACCEPTABLE_COST) {
+      console.log(`  BUDGET EXCEEDED: net cost ${netCost} > max ${MAX_ACCEPTABLE_COST} sats`);
+      process.exit(1);
     }
 
     process.exit(passed === total ? 0 : 1);

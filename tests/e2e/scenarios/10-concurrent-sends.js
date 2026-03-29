@@ -2,6 +2,12 @@
  * E2E.4: Concurrent sends (FIFO spending lock).
  * Fire multiple simultaneous createAction calls at Wallet A.
  * The FIFO spending lock should serialize them — all should succeed.
+ *
+ * Each send uses a unique derivation path so B can internalize all 5
+ * without derivation collision. The keyId format is "{prefix} {suffix}"
+ * where the suffix varies per send.
+ *
+ * Cost: 5 × 2000 sats + 5 fees ≈ 10,150 sats (all recoverable via sweep)
  */
 const { ANYONE_KEY, buildP2PKH } = require('../lib/wallet-client');
 
@@ -13,32 +19,33 @@ module.exports = {
     const sendAmount = 2_000;
     const concurrency = 5;
 
-    // Get B's address for all sends
-    const bKey = await walletB.client.getPublicKey(
-      [2, '3241645161d8'], 'SfKxPIJNgdI= NaGLC6fMH50=',
-      ANYONE_KEY, true,
-    );
-    const bScript = buildP2PKH(bKey.publicKey);
-
     const aBalanceBefore = await walletA.client.balance();
     assert(aBalanceBefore >= sendAmount * concurrency,
       `A needs at least ${sendAmount * concurrency} sats, has ${aBalanceBefore}`);
 
-    // Fire all 5 concurrently
-    const start = Date.now();
-    const promises = [];
+    // Derive unique receiving address per send (sequential — just setup)
+    const sends = [];
     for (let i = 0; i < concurrency; i++) {
-      promises.push(
-        walletA.client.createAction([{
-          lockingScript: bScript,
-          satoshis: sendAmount,
-          outputDescription: `Concurrent send #${i + 1} of ${concurrency}`,
-          tags: ['e2e-concurrent'],
-        }], `E2E.4: concurrent #${i + 1}`)
-          .then(r => ({ status: 'ok', txid: r.txid, tx: r.tx, index: i }))
-          .catch(e => ({ status: 'error', error: e.message, index: i }))
+      const suffix = `e2eConcSend${i}`;
+      const bKey = await walletB.client.getPublicKey(
+        [2, '3241645161d8'], `SfKxPIJNgdI= ${suffix}`,
+        ANYONE_KEY, true,
       );
+      sends.push({ index: i, suffix, script: buildP2PKH(bKey.publicKey) });
     }
+
+    // Fire all 5 concurrently (each to its unique address)
+    const start = Date.now();
+    const promises = sends.map(s =>
+      walletA.client.createAction([{
+        lockingScript: s.script,
+        satoshis: sendAmount,
+        outputDescription: `Concurrent send #${s.index + 1} of ${concurrency}`,
+        tags: ['e2e-concurrent'],
+      }], `E2E.4: concurrent #${s.index + 1}`)
+        .then(r => ({ status: 'ok', txid: r.txid, tx: r.tx, ...s }))
+        .catch(e => ({ status: 'error', error: e.message, ...s }))
+    );
 
     const results = await Promise.all(promises);
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
@@ -65,7 +72,7 @@ module.exports = {
     assert(txids.size === concurrency,
       `All ${concurrency} txids must be unique, got ${txids.size}`);
 
-    // B internalizes all (so sats can be swept back)
+    // B internalizes all 5 (each with its unique derivation suffix)
     for (const r of succeeded) {
       if (r.tx && r.tx.length > 0) {
         await walletB.client.internalizeAction(r.tx, [{
@@ -73,7 +80,7 @@ module.exports = {
           protocol: 'wallet payment',
           paymentRemittance: {
             derivationPrefix: 'SfKxPIJNgdI=',
-            derivationSuffix: 'NaGLC6fMH50=',
+            derivationSuffix: r.suffix,
             senderIdentityKey: ANYONE_KEY,
           },
         }], `internalize concurrent send #${r.index + 1}`);
@@ -82,13 +89,12 @@ module.exports = {
 
     // Check balances
     const aBalanceAfter = await walletA.client.balance();
-    const expectedSpent = sendAmount * concurrency;
     assert(aBalanceAfter < aBalanceBefore,
       `A balance should decrease: was ${aBalanceBefore}, now ${aBalanceAfter}`);
 
     return {
       txid: succeeded[0]?.txid,
-      sats: expectedSpent,
+      sats: sendAmount * concurrency,
       wocConfirmed: 'n/a',
       succeeded: succeeded.length,
       failed: failed.length,

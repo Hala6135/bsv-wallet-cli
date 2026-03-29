@@ -8,3 +8,4 @@
 *.log
 .playwright-mcp/
 .claude-docs-logs/
+e2e-funder/

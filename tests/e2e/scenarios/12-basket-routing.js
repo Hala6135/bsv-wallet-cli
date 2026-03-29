@@ -2,7 +2,13 @@
  * E2E.12: Custom basket routing.
  * Tests that outputs internalized with basket insertion protocol
  * land in the correct basket and can be queried via listOutputs.
- * Cost: ~10000 sats (A sends to B, B internalizes into custom basket)
+ *
+ * Known limitation: The HTTP API doesn't support the `inputs` field in
+ * createAction (hardcoded to empty), so custom basket outputs can't be
+ * explicitly spent back. The 1K sats in the custom basket are a known
+ * per-run cost of testing basket routing.
+ *
+ * Cost: ~1000 sats (stuck in custom basket) + fee
  */
 const { ANYONE_KEY, buildP2PKH } = require('../lib/wallet-client');
 
@@ -11,7 +17,7 @@ module.exports = {
   description: 'Output basket assignment persists and is queryable via listOutputs',
 
   async run(walletA, walletB, assert) {
-    const amount = 5_000;
+    const amount = 1_000;
     const basketName = 'e2e-test-basket';
 
     // Step 1: Verify basket starts empty on B
@@ -23,7 +29,7 @@ module.exports = {
 
     // Step 2: Get B's derived key for P2PKH
     const bKey = await walletB.client.getPublicKey(
-      [2, '3241645161d8'], 'SfKxPIJNgdI= NaGLC6fMH50=', ANYONE_KEY, true,
+      [2, '3241645161d8'], 'SfKxPIJNgdI= e2eBasket12', ANYONE_KEY, true,
     );
     const lockingScript = buildP2PKH(bKey.publicKey);
 
@@ -33,7 +39,6 @@ module.exports = {
         lockingScript,
         satoshis: amount,
         outputDescription: 'basket routing test',
-        basket: basketName,
         tags: ['e2e-basket-test'],
       }],
       'basket routing scenario',
@@ -67,6 +72,24 @@ module.exports = {
     const found = after.outputs.find(o => o.satoshis === amount);
     assert(found, `should find output with ${amount} sats in basket "${basketName}"`);
 
-    return { txid: result.txid, wocConfirmed: 'n/a', sats: amount };
+    // Step 7: Try to recover — internalize same tx as wallet payment into default basket.
+    // This may fail (wallet may reject duplicate internalization), which is acceptable.
+    try {
+      await walletB.client.internalizeAction(result.tx, [{
+        outputIndex: 0,
+        protocol: 'wallet payment',
+        paymentRemittance: {
+          derivationPrefix: 'SfKxPIJNgdI=',
+          derivationSuffix: 'e2eBasket12',
+          senderIdentityKey: ANYONE_KEY,
+        },
+      }], 'recover basket output to default');
+      console.log(`       basket recovery: OK (output also in default basket)`);
+    } catch (e) {
+      console.log(`       basket recovery: skipped (${e.message.slice(0, 50)}) — ${amount} sats stuck in custom basket`);
+    }
+
+    return { txid: result.txid, wocConfirmed: 'n/a', sats: amount,
+      knownLoss: `${amount} sats in custom basket (no HTTP inputs support)` };
   },
 };
