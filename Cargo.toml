@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "bsv-wallet-cli"
-version = "0.1.11"
+version = "0.1.12"
 edition = "2021"
 license = "MIT"
 authors = ["John Calhoun"]
@@ -23,7 +23,7 @@ name = "bsv-wallet"
 path = "src/main.rs"
 
 [dependencies]
-bsv-wallet-toolbox = { package = "bsv-wallet-toolbox-rs", version = "0.3.22", features = ["sqlite"] }
+bsv-wallet-toolbox = { package = "bsv-wallet-toolbox-rs", version = "0.3.23", features = ["sqlite"] }
 bsv-sdk = { package = "bsv-rs", version = "0.3.3", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 clap = { version = "4", features = ["derive"] }
@@ -49,7 +49,4 @@ tls = ["axum-server"]
 reqwest = { version = "0.12", features = ["json"] }
 tempfile = "3"
 
-[patch.crates-io]
-bsv-wallet-toolbox-rs = { path = "../bsv-wallet-toolbox-rs" }
-bsv-rs = { path = "../rust-sdk" }
 
