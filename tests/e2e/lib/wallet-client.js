@@ -14,6 +14,7 @@ class WalletClient {
       method: 'POST',
       headers: { 'Origin': this.origin, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(180_000), // 3 min — broadcast can retry across multiple providers
     });
     const text = await resp.text();
     let data = {};

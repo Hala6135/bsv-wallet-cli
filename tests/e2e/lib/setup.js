@@ -23,7 +23,10 @@ async function startWallet(port, name) {
   // Init wallet (generates ROOT_KEY + wallet.db)
   execSync(`cd "${dir}" && "${BSV}" init`, { stdio: 'pipe' });
 
-  // Start serve in background
+  // Start serve in background. The monitor daemon is NOT needed for test wallets
+  // because internalized txs are spent via BEEF which includes the parent tx
+  // (already broadcast by the sender). The monitor would actually interfere by
+  // trying to re-broadcast internalized txs and saturating ARC connections.
   const proc = spawn(BSV, ['--port', String(port), 'serve'], {
     cwd: dir,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -108,6 +111,15 @@ async function sweepToFunder(wallet) {
       swept += sweepAmount;
       break;
     } catch (e) {
+      // Check if the sweep actually went through despite the timeout.
+      // The wallet may have broadcast successfully but the HTTP response
+      // took too long (e.g., ARC providers slow to respond).
+      const balNow = await wallet.client.balance().catch(() => balance);
+      if (balNow < balance - 500) {
+        console.log(`  ${wallet.client.name}: sweep timed out but balance dropped (${balance} → ${balNow}) — tx went through`);
+        swept += balance - balNow;
+        break;
+      }
       if (attempt < 3) {
         const prev = sweepAmount;
         sweepAmount = Math.floor(sweepAmount / 2);

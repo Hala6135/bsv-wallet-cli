@@ -103,7 +103,7 @@ async function main() {
 
       try {
         const timeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('TIMEOUT: scenario exceeded 120s')), 120_000));
+          setTimeout(() => reject(new Error('TIMEOUT: scenario exceeded 300s')), 300_000));
         const result = await Promise.race([scenario.run(walletA, walletB, assert), timeout]);
         const elapsed = ((Date.now() - start) / 1000).toFixed(1);
 
