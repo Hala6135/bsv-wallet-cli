@@ -67,6 +67,11 @@ pub async fn run(cli: &Cli) -> Result<()> {
         .await
         .ok();
     let services2 = make_services(chain)?;
+    // Wire ChainTracker into wallet storage for Layer 4 BEEF validation
+    // (must match storage1 — without this, create_action skips stored BEEF validation)
+    if let Some(ref ct) = services2.chaintracks {
+        storage2.set_chain_tracker(ct.clone()).await;
+    }
     let wallet = Wallet::new(Some(root_key), storage2, services2)
         .await
         .map_err(|e| anyhow::anyhow!("{}", e))?;
