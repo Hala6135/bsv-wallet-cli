@@ -42,6 +42,11 @@ impl WalletContext {
             Services::with_options(chain, opts)?
         };
 
+        // Wire ChainTracker into storage for merkle proof validation (Layer 1)
+        if let Some(ref ct) = services.chaintracks {
+            storage.set_chain_tracker(ct.clone()).await;
+        }
+
         let wallet = Wallet::new(Some(root_key.clone()), storage, services).await?;
 
         Ok(Self {
