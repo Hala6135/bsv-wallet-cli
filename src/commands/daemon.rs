@@ -42,6 +42,11 @@ pub async fn run(cli: &Cli) -> Result<()> {
 
     let services = make_services(chain)?;
 
+    // Wire ChainTracker into storage for Layer 1 proof validation
+    if let Some(ref ct) = services.chaintracks {
+        storage.set_chain_tracker(ct.clone()).await;
+    }
+
     let storage_arc = Arc::new(storage);
     let services_arc = Arc::new(services);
 
