@@ -2,8 +2,11 @@ use anyhow::{Context, Result};
 use bsv_sdk::primitives::PrivateKey;
 use bsv_sdk::wallet::{ListOutputsArgs, WalletInterface};
 use bsv_wallet_toolbox::{
-    Chain, Monitor, Services, ServicesOptions, StorageSqlx, Wallet, WalletStorageWriter,
+    services::providers::ArcConfig, Chain, Monitor, Services, ServicesOptions, StorageSqlx, Wallet,
+    WalletStorageWriter,
 };
+// Hardcoded TAAL API endpoint for clarity in the override below.
+const TAAL_ARC_URL: &str = "https://arc.taal.com";
 use std::sync::Arc;
 
 use crate::cli::Cli;
@@ -36,6 +39,25 @@ pub async fn run(cli: &Cli) -> Result<()> {
         };
         if let Ok(url) = std::env::var("CHAINTRACKS_URL") {
             opts = opts.with_chaintracks_url(url);
+        }
+        // Optionally authenticate TAAL broadcasts via MAIN_TAAL_API_KEY env.
+        // TAAL accepts `Authorization: <key>` WITHOUT the "Bearer " prefix
+        // that the toolbox's ArcConfig.api_key would generate, so we pass
+        // the header directly via additional_headers. TAAL is now the first
+        // post_beef provider in bsv-wallet-toolbox-rs 0.3.37+, so setting
+        // this key lets the first broadcast attempt use authenticated TAAL.
+        if let Ok(api_key) = std::env::var("MAIN_TAAL_API_KEY") {
+            if !api_key.is_empty() {
+                let mut headers = std::collections::HashMap::new();
+                headers.insert("Authorization".to_string(), api_key);
+                opts = opts.with_arc(
+                    TAAL_ARC_URL,
+                    Some(ArcConfig {
+                        headers: Some(headers),
+                        ..Default::default()
+                    }),
+                );
+            }
         }
         Ok(Services::with_options(chain, opts)?)
     };
