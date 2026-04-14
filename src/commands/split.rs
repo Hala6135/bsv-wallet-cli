@@ -90,14 +90,35 @@ pub async fn run(ctx: &WalletContext, count: u32) -> Result<()> {
     let (_, anyone_pubkey_for_sender) = KeyDeriver::anyone_key();
     let sender_identity_key = anyone_pubkey_for_sender.to_hex();
 
-    // Build outputs — tagged relinquish so createAction doesn't track them as ours.
-    // We'll self-internalize after to get proper derivation stored.
+    // Build outputs.
+    //
+    // CRITICAL: `basket: None` (NOT Some("default")).
+    //
+    // If we put these into a basket during create_action, the toolbox stores
+    // them with `change = 0, provided_by = "you"` because it sees the wallet
+    // creating intentional outputs into its own basket. After the subsequent
+    // internalize_action("wallet payment"), the merge path does NOT promote
+    // them to change=1 (internalize only updates change=1 when converting an
+    // "external" output into a received payment, not when a basketed output
+    // is re-registered).
+    //
+    // With `basket: None`, create_action treats them as unbasketed external
+    // outputs during the signed-tx construction. Then internalize_action
+    // with protocol "wallet payment" imports them with change=1, which is
+    // what makes them visible to the coin selector in subsequent
+    // createAction calls (e.g. overlay registration, LLM x402 payments).
+    //
+    // The `relinquish` tag is kept as informational — it doesn't affect
+    // selection, but labels the outputs for human-readable diagnostics.
+    //
+    // See dolphinmilkshake/experiments/E21-0-stage.md for the full
+    // investigation that led here.
     let outputs: Vec<CreateActionOutput> = (0..count)
         .map(|_| CreateActionOutput {
             locking_script: lock_bytes.clone(),
             satoshis: per_output,
             output_description: "split output".to_string(),
-            basket: Some("default".to_string()),
+            basket: None,
             custom_instructions: None,
             tags: Some(vec!["relinquish".to_string()]),
         })
