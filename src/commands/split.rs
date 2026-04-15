@@ -68,13 +68,34 @@ pub async fn run(ctx: &WalletContext, count: u32) -> Result<()> {
     let lock = P2PKH::lock_from_address(&address)?;
     let lock_bytes = lock.to_binary();
 
-    // Reserve ~200 sats for fees, split the rest evenly
-    let fee_reserve: u64 = 200;
+    // Dynamic fee reserve based on tx size estimate.
+    //
+    // The old hardcoded 200-sat reserve was fine for small splits (count<=10,
+    // few inputs) but silently failed for larger splits or wallets with many
+    // existing UTXOs — e.g. 50 outputs from 8 inputs exceeded 200 sats of fees
+    // and the toolbox rejected with `Insufficient funds: need X, have Y` where
+    // Y was exactly (total_sats - 200). Seen during DolphinSense fleet
+    // captain split 50 on 2026-04-15.
+    //
+    // Estimate follows the usual BSV P2PKH tx footprint:
+    //   inputs:  148 bytes each (sig + pubkey + outpoint + scriptlen + seq)
+    //   outputs:  34 bytes each (value + scriptlen + P2PKH script)
+    //   overhead: ~10 bytes (version + locktime + count varints)
+    //
+    // Fee rate: we use 1 sat/byte as a generous cap (BSV miners typically
+    // accept 0.5 sat/byte or lower). A 1 sat/byte estimate overshoots by ~2x
+    // which is fine — worst case a few unused sats accumulate on the wallet.
+    // With this headroom, a split from 15+ inputs to 100+ outputs still fits.
+    //
+    // Minimum floor of 500 so tiny splits don't race into dust territory.
+    let estimated_tx_bytes: u64 = (utxo_count as u64 * 148) + (count as u64 * 34) + 10;
+    let fee_reserve: u64 = estimated_tx_bytes.max(500);
     if total_sats <= fee_reserve {
         anyhow::bail!(
-            "Balance too low to split ({} sats, need > {} for fees)",
+            "Balance too low to split ({} sats, need > {} for fees at {}b estimate)",
             total_sats,
-            fee_reserve
+            fee_reserve,
+            estimated_tx_bytes
         );
     }
     let available = total_sats - fee_reserve;
