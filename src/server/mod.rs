@@ -179,6 +179,17 @@ pub fn make_wallet_state(wallet: Wallet<StorageSqlx, Services>) -> WalletState {
     Arc::new(wallet)
 }
 
+/// Build a `WalletState` from an existing `Arc<Wallet>`.
+///
+/// Use this when the caller is already holding an `Arc<Wallet>` and wants the
+/// HTTP server to share the *same* wallet instance — same identity key, same
+/// balance, same UTXO set. Avoids opening a second `Wallet` handle against
+/// the same SQLite DB (which would work via busy_timeout but adds write
+/// contention and a second instance of any in-memory caches).
+pub fn make_wallet_state_from_arc(wallet: Arc<Wallet<StorageSqlx, Services>>) -> WalletState {
+    wallet
+}
+
 async fn shutdown_signal() {
     tokio::signal::ctrl_c()
         .await
